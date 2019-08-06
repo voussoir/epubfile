@@ -68,6 +68,7 @@ OPF_TEMPLATE = '''
     <dc:creator id="cre">author</dc:creator>
     <meta scheme="marc:relators" refines="#cre" property="role">aut</meta>
     <dc:title>title</dc:title>
+    <dc:language>und</dc:language>
   </metadata>
   <manifest>
     <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
