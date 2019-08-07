@@ -27,6 +27,10 @@ book.save('modifiedbook.epub')
 
 epubfile provides simple editing of epub books. epubfile attempts to keep file modifications to a minimum. It does not add, remove, or rearrange files unless you ask it to, and does not inject additional metadata. As such, it works for both epub2 and epub3 assuming you stick to supported operations for your book version.
 
+# Install
+
+`pip install epubfile`
+
 # Command line utilities
 
 This library was born out of my own needs. So there are a couple of builtin utilities.
