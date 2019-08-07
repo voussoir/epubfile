@@ -834,7 +834,7 @@ class Epub:
 
         if self.opf_filepath.parent == self.root_directory:
             oebps = self.root_directory.with_child('OEBPS')
-            os.makedirs(oebps.absolute_path)
+            os.makedirs(oebps.absolute_path, exist_ok=True)
             self.write_opf()
             new_opf_path = oebps.with_child(self.opf_filepath.basename)
             os.rename(self.opf_filepath.absolute_path, new_opf_path.absolute_path)
