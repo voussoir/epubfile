@@ -294,6 +294,10 @@ class Epub:
             existing = filepath.relative_to(self.opf_filepath.parent)
             raise FileExists(existing)
 
+    def assert_id_not_exists(self, id):
+        if self.opf.manifest.find('item', {'id': id}):
+            raise IDExists(id)
+
     # LOADING AND SAVING
     ############################################################################
     @classmethod
@@ -379,8 +383,7 @@ class Epub:
     # FILE OPERATIONS
     ############################################################################
     def add_file(self, id, basename, content):
-        if self.opf.manifest.find('item', {'id': id}):
-            raise IDExists(id)
+        self.assert_id_not_exists(id)
 
         basename = os.path.basename(basename)
         mime = get_mimetype_for_basename(basename)
