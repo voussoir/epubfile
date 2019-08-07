@@ -687,6 +687,28 @@ class Epub:
 
         spine_item['linear'] = linear
 
+    # METADATA
+    ############################################################################
+    def get_authors(self):
+        '''
+        Thank you double_j for showing how to deal with find_all not working
+        on namespaced tags.
+        https://stackoverflow.com/a/44681560
+        '''
+        creators = self.opf.metadata.find_all({'dc:creator'})
+        creators = [str(c.contents[0]) for c in creators if len(c.contents) == 1]
+        return creators
+
+    def get_languages(self):
+        languages = self.opf.metadata.find_all({'dc:language'})
+        languages = [str(l.contents[0]) for l in languages if len(l.contents) == 1]
+        return languages
+
+    def get_titles(self):
+        titles = self.opf.metadata.find_all({'dc:title'})
+        titles = [str(t.contents[0]) for t in titles if len(t.contents) == 1]
+        return titles
+
     # UTILITIES
     ############################################################################
     def fix_all_xhtml(self):
