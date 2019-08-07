@@ -883,3 +883,242 @@ class Epub:
         for id in self.get_texts():
             self.fix_interlinking_text(id, rename_map, old_relative_to=old_filepaths[id].parent)
         self.fix_interlinking_ncx(rename_map, old_relative_to=old_ncx_parent)
+
+
+# COMMAND LINE TOOLS
+################################################################################
+import argparse
+import html
+import random
+import string
+import sys
+
+from voussoirkit import betterhelp
+
+DOCSTRING = '''
+{addfile}
+
+{covercomesfirst}
+
+{merge}
+
+{normalize}
+'''.lstrip()
+
+SUB_DOCSTRINGS = {
+'addfile':
+'''
+addfile:
+    Add files into the book.
+
+    > epubfile.py addfile book.epub page1.html image.jpg
+'''.strip(),
+
+'covercomesfirst':
+'''
+covercomesfirst:
+    Rename the cover image file so that it is the alphabetically-first image.
+
+    > epubfile.py covercomesfirst book.epub
+
+    I use CBXShell to get thumbnails of epub files on Windows, and because it
+    is generalized for zip files and doesn't read epub metadata, alphabetized
+    mode works best for getting epub covers as icons.
+
+    In my testing, CBXShell considers the image's whole path and not just the
+    basename, so you may want to consider normalizing the directory structure
+    first, otherwise some /a/image.jpg will always be before /images/cover.jpg.
+'''.strip(),
+
+'merge':
+'''
+merge:
+    Merge multiple books into one.
+
+    > epubfile.py merge book1.epub book2.epub --output final.epub <flags>
+
+    flags:
+    --headerfile:
+        Add a file before each book with an <h1> containing its title.
+
+    -y | --autoyes:
+        Overwrite the output file without prompting.
+'''.strip(),
+
+'normalize':
+'''
+normalize:
+    Rename files and directories in the book to match a common structure.
+
+    Moves all book content from / into /OEBPS and sorts files into
+    subdirectories by type: Text, Images, Styles, etc.
+
+    > epubfile.py normalize book.epub
+'''.strip()
+}
+
+DOCSTRING = betterhelp.add_previews(DOCSTRING, SUB_DOCSTRINGS)
+
+def random_string(length, characters=string.ascii_lowercase):
+    return ''.join(random.choice(characters) for x in range(length))
+
+def addfile_argparse(args):
+    book = Epub.open(args.epub)
+
+    for file in args.files:
+        print(f'Adding file {file}.')
+        file = pathclass.Path(file)
+        try:
+            book.easy_add_file(file)
+        except (IDExists, FileExists) as exc:
+            rand_suffix = random_string(3, string.digits)
+            base = file.replace_extension('').basename
+            id = f'{base}_{rand_suffix}'
+            basename = f'{base}_{rand_suffix}{file.dot_extension}'
+            content = open(file.absolute_path, 'rb').read()
+            book.add_file(id, basename, content)
+
+    book.move_nav_to_end()
+    book.save(args.epub)
+
+def covercomesfirst_argparse(args):
+    book = Epub.open(args.epub)
+    basenames = {i: book.get_filepath(i).basename for i in book.get_images()}
+    if len(basenames) <= 1:
+        return
+
+    cover_image = book.get_cover_image()
+    if not cover_image:
+        return
+
+    cover_basename = book.get_filepath(cover_image).basename
+
+    cover_index = sorted(basenames.values()).index(cover_basename)
+    if cover_index == 0:
+        return
+
+    rename_map = basenames.copy()
+
+    if not cover_basename.startswith('!'):
+        cover_basename = '!' + cover_basename
+        rename_map[cover_image] = cover_basename
+    else:
+        rename_map.pop(cover_image)
+
+    for (id, basename) in rename_map.copy().items():
+        if id == cover_image:
+            continue
+        if basename > cover_basename:
+            rename_map.pop(id)
+            continue
+        if basename < cover_basename and basename.startswith('!'):
+            basename = basename.lstrip('!')
+            rename_map[id] = basename
+        if basename < cover_basename or basename.startswith('.'):
+            basename = '_' + basename
+            rename_map[id] = basename
+
+    book.rename_file(rename_map)
+
+    book.save(args.epub)
+
+def merge(input_filepaths, output_filename, do_headerfile=False):
+    book = Epub.new()
+
+    index_length = len(str(len(input_filepaths)))
+    rand_prefix = random_string(3, string.digits)
+
+    input_filepaths = [pathclass.Path(p) for p in input_filepaths]
+
+    for (index, input_filepath) in enumerate(input_filepaths):
+        print(f'Merging {input_filepath}.')
+        prefix = f'{rand_prefix}_{index:>0{index_length}}_{{}}'
+        input_book = Epub.open(input_filepath)
+        input_book.normalize_directory_structure()
+
+        input_ncx = input_book.get_ncx()
+        input_nav = input_book.get_nav()
+        manifest_ids = input_book.get_manifest_items(spine_order=True)
+        manifest_ids = [x for x in manifest_ids if x not in (input_ncx, input_nav)]
+
+        basename_map = {}
+        for id in manifest_ids:
+            old_basename = input_book.get_filepath(id).basename
+            new_basename = prefix.format(old_basename)
+            basename_map[id] = new_basename
+
+        # Don't worry, we're not going to save this!
+        input_book.rename_file(basename_map)
+
+        if do_headerfile:
+            content = ''
+            try:
+                title = input_book.get_titles()[0]
+            except IndexError:
+                title = input_filepath.replace_extension('').basename
+            finally:
+                content += f'<h1>{html.escape(title)}</h1>'
+
+            try:
+                author = input_book.get_authors()[0]
+                content += f'<p>{html.escape(author)}</p>'
+            except IndexError:
+                pass
+
+            headerfile_id = prefix.format('headerfile')
+            headerfile_basename = prefix.format('headerfile.html')
+            book.add_file(headerfile_id, headerfile_basename, content)
+
+        for id in manifest_ids:
+            new_id = f'{rand_prefix}_{index:>0{index_length}}_{id}'
+            new_basename = basename_map[id]
+            book.add_file(new_id, new_basename, input_book.read_file(id))
+
+    book.move_nav_to_end()
+    book.save(output_filename)
+
+def merge_argparse(args):
+    if os.path.exists(args.output):
+        ok = args.autoyes
+        if not ok:
+            ok = input(f'Overwrite {args.output}? y/n\n>').lower() in ('y', 'yes')
+        if not ok:
+            raise ValueError(f'{args.output} exists.')
+
+    return merge(input_filepaths=args.epubs, output_filename=args.output, do_headerfile=args.headerfile)
+
+def normalize_argparse(args):
+    book = Epub.open(args.epub)
+    book.normalize_directory_structure()
+    book.save(args.epub)
+
+@betterhelp.subparser_betterhelp(main_docstring=DOCSTRING, sub_docstrings=SUB_DOCSTRINGS)
+def main(argv):
+    parser = argparse.ArgumentParser(description=__doc__)
+    subparsers = parser.add_subparsers()
+
+    p_addfile = subparsers.add_parser('addfile')
+    p_addfile.add_argument('epub')
+    p_addfile.add_argument('files', nargs='+', default=[])
+    p_addfile.set_defaults(func=addfile_argparse)
+
+    p_covercomesfirst = subparsers.add_parser('covercomesfirst')
+    p_covercomesfirst.add_argument('epub')
+    p_covercomesfirst.set_defaults(func=covercomesfirst_argparse)
+
+    p_merge = subparsers.add_parser('merge')
+    p_merge.add_argument('epubs', nargs='+', default=[])
+    p_merge.add_argument('--output', dest='output', default=None, required=True)
+    p_merge.add_argument('--headerfile', dest='headerfile', action='store_true')
+    p_merge.add_argument('-y', '--autoyes', dest='autoyes', action='store_true')
+    p_merge.set_defaults(func=merge_argparse)
+
+    p_normalize = subparsers.add_parser('normalize')
+    p_normalize.add_argument('epub')
+    p_normalize.set_defaults(func=normalize_argparse)
+
+    args = parser.parse_args(argv)
+    args.func(args)
+
+if __name__ == '__main__':
+    raise SystemExit(main(sys.argv[1:]))

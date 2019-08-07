@@ -27,6 +27,24 @@ book.save('modifiedbook.epub')
 
 epubfile provides simple editing of epub books. epubfile attempts to keep file modifications to a minimum. It does not add, remove, or rearrange files unless you ask it to, and does not inject additional metadata. As such, it works for both epub2 and epub3 assuming you stick to supported operations for your book version.
 
+# Command line utilities
+
+This library was born out of my own needs. So there are a couple of builtin utilities.
+
+```
+addfile:
+    Add files into the book.
+
+covercomesfirst:
+    Rename the cover image file so that it is the alphabetically-first image.
+
+merge:
+    Merge multiple books into one.
+
+normalize:
+    Rename files and directories in the book to match a common structure.
+```
+
 # Spec compliance
 
 epubfile does not rigorously enforce the epub spec and you can create noncompliant books with it. Basic errors are checked, and I am open to issues and comments regarding ways to improve spec-compliance without adding significant size or complexity to the library. I am prioritizing simplicity and ease of use over perfection.
