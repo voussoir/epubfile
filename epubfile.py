@@ -28,6 +28,7 @@ HTML_LINK_PROPERTIES = {
 EXTENSION_MIMETYPES = {
     'html': 'application/xhtml+xml',
     'xhtml': 'application/xhtml+xml',
+    'htm': 'application/xhtml+xml',
     'smi': 'application/smil+xml',
     'smil': 'application/smil+xml',
     'sml': 'application/smil+xml',
