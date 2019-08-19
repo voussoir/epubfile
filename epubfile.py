@@ -888,6 +888,7 @@ class Epub:
 # COMMAND LINE TOOLS
 ################################################################################
 import argparse
+import glob
 import html
 import random
 import string
@@ -991,8 +992,7 @@ def addfile_argparse(args):
     book.move_nav_to_end()
     book.save(args.epub)
 
-def covercomesfirst_argparse(args):
-    book = Epub.open(args.epub)
+def covercomesfirst(book):
     basenames = {i: book.get_filepath(i).basename for i in book.get_images()}
     if len(basenames) <= 1:
         return
@@ -1031,6 +1031,13 @@ def covercomesfirst_argparse(args):
     book.rename_file(rename_map)
 
     book.save(args.epub)
+
+def covercomesfirst_argparse(args):
+    epubs = [epub for pattern in args.epubs for epub in glob.glob(pattern)]
+    for epub in epubs:
+        print(epub)
+        book = Epub.open(epub)
+        covercomesfirst(book)
 
 def holdit_argparse(args):
     book = Epub.open(args.epub)
@@ -1104,9 +1111,13 @@ def merge_argparse(args):
     return merge(input_filepaths=args.epubs, output_filename=args.output, do_headerfile=args.headerfile)
 
 def normalize_argparse(args):
-    book = Epub.open(args.epub)
-    book.normalize_directory_structure()
-    book.save(args.epub)
+    epubs = [epub for pattern in args.epubs for epub in glob.glob(pattern)]
+    for epub in epubs:
+        print(epub)
+        book = Epub.open(epub)
+        book.normalize_directory_structure()
+        book.move_nav_to_end()
+        book.save(epub)
 
 @betterhelp.subparser_betterhelp(main_docstring=DOCSTRING, sub_docstrings=SUB_DOCSTRINGS)
 def main(argv):
@@ -1119,7 +1130,7 @@ def main(argv):
     p_addfile.set_defaults(func=addfile_argparse)
 
     p_covercomesfirst = subparsers.add_parser('covercomesfirst')
-    p_covercomesfirst.add_argument('epub')
+    p_covercomesfirst.add_argument('epubs', nargs='+', default=[])
     p_covercomesfirst.set_defaults(func=covercomesfirst_argparse)
 
     p_holdit = subparsers.add_parser('holdit')
@@ -1134,7 +1145,7 @@ def main(argv):
     p_merge.set_defaults(func=merge_argparse)
 
     p_normalize = subparsers.add_parser('normalize')
-    p_normalize.add_argument('epub')
+    p_normalize.add_argument('epubs', nargs='+', default=[])
     p_normalize.set_defaults(func=normalize_argparse)
 
     args = parser.parse_args(argv)
