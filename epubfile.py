@@ -1043,6 +1043,9 @@ def holdit_argparse(args):
     book = Epub.open(args.epub)
     print(book.root_directory.absolute_path)
     input('Press Enter when ready.')
+    # Saving re-writes the opf from memory, which might undo any manual changes.
+    # So let's re-read it first.
+    book.read_opf(book.opf_filepath)
     book.save(args.epub)
 
 def merge(input_filepaths, output_filename, do_headerfile=False):
