@@ -877,8 +877,9 @@ class Epub:
             os.makedirs(directory.absolute_path, exist_ok=True)
 
             new_filepath = directory.with_child(old_filepath.basename)
-            rename_map[old_filepath] = new_filepath
-            os.rename(old_filepath.absolute_path, new_filepath.absolute_path)
+            if new_filepath != old_filepath:
+                rename_map[old_filepath] = new_filepath
+                os.rename(old_filepath.absolute_path, new_filepath.absolute_path)
             manifest_item['href'] = new_filepath.relative_to(self.opf_filepath.parent, simple=True)
 
         self.fix_interlinking_opf(rename_map)
