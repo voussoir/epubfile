@@ -770,6 +770,8 @@ class Epub:
         return (links, commit)
 
     def fix_interlinking_text(self, id, rename_map, old_relative_to=None):
+        if not rename_map:
+            return
         text_parent = self.get_filepath(id).parent
         soup = self.read_file(id, soup=True)
         for tag in soup.descendants:
@@ -793,6 +795,8 @@ class Epub:
         self.write_file(id, text)
 
     def fix_interlinking_ncx(self, rename_map, old_relative_to=None):
+        if not rename_map:
+            return
         ncx_id = self.get_ncx()
         if not ncx_id:
             return
@@ -812,6 +816,8 @@ class Epub:
         self.write_file(ncx_id, ncx)
 
     def fix_interlinking_opf(self, rename_map):
+        if not rename_map:
+            return
         opf_parent = self.opf_filepath.parent
         for opf_item in self.opf.select('guide > reference[href], manifest > item[href]'):
             link = opf_item['href']
@@ -821,6 +827,8 @@ class Epub:
             opf_item['href'] = link
 
     def fix_interlinking(self, rename_map):
+        if not rename_map:
+            return
         self.fix_interlinking_opf(rename_map)
         for id in self.get_texts():
             self.fix_interlinking_text(id, rename_map)
