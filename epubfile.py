@@ -839,8 +839,10 @@ class Epub:
             if id == nav:
                 spine.append(spine.pop(index))
                 break
-        self.set_spine_order(spine)
+        else:
+            spine.append(nav)
 
+        self.set_spine_order(spine)
         self.set_spine_linear(nav, False)
 
     def normalize_directory_structure(self):
