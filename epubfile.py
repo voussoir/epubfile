@@ -900,6 +900,8 @@ DOCSTRING = '''
 
 {covercomesfirst}
 
+{holdit}
+
 {merge}
 
 {normalize}
@@ -929,6 +931,14 @@ covercomesfirst:
     basename, so you may want to consider normalizing the directory structure
     first, otherwise some /a/image.jpg will always be before /images/cover.jpg.
 '''.strip(),
+
+'holdit':
+'''
+holdit:
+    Extract the book and leave it open for manual editing, then save.
+
+    > epubfile.py holdit book.epub
+''',
 
 'merge':
 '''
@@ -1022,6 +1032,12 @@ def covercomesfirst_argparse(args):
 
     book.save(args.epub)
 
+def holdit_argparse(args):
+    book = Epub.open(args.epub)
+    print(book.root_directory.absolute_path)
+    input('Press Enter when ready.')
+    book.save(args.epub)
+
 def merge(input_filepaths, output_filename, do_headerfile=False):
     book = Epub.new()
 
@@ -1105,6 +1121,10 @@ def main(argv):
     p_covercomesfirst = subparsers.add_parser('covercomesfirst')
     p_covercomesfirst.add_argument('epub')
     p_covercomesfirst.set_defaults(func=covercomesfirst_argparse)
+
+    p_holdit = subparsers.add_parser('holdit')
+    p_holdit.add_argument('epub')
+    p_holdit.set_defaults(func=holdit_argparse)
 
     p_merge = subparsers.add_parser('merge')
     p_merge.add_argument('epubs', nargs='+', default=[])
