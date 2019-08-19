@@ -32,10 +32,10 @@ EXTENSION_MIMETYPES = {
     'smi': 'application/smil+xml',
     'smil': 'application/smil+xml',
     'sml': 'application/smil+xml',
-    'otf': 'application/font-sfnt',
-    'ttf': 'application/font-sfnt',
     'pls': 'application/pls+xml',
-    'woff': 'application/font-woff',
+    'otf': 'font/otf',
+    'ttf': 'font/ttf',
+    'woff': 'font/woff',
     'woff2': 'font/woff2',
 }
 
