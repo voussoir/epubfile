@@ -1,3 +1,4 @@
+import copy
 import mimetypes
 import os
 import re
@@ -834,6 +835,166 @@ class Epub:
             self.fix_interlinking_text(id, rename_map)
         self.fix_interlinking_ncx(rename_map)
 
+    def _set_nav_toc(self, nav_id, new_toc):
+        for li in new_toc.find_all('li'):
+            href = li['nav_anchor']
+            atag = new_toc.new_tag('a')
+            atag.append(li['text'])
+            atag['href'] = href
+            li.insert(0, atag)
+            del li['nav_anchor']
+            del li['ncx_anchor']
+            del li['text']
+        soup = self.read_file(nav_id, soup=True)
+        toc = soup.find('nav', {'epub:type': 'toc'})
+        if not toc:
+            toc = soup.new_tag('nav')
+            toc['epub:type'] = 'toc'
+            soup.body.insert(0, toc)
+        if toc.ol:
+            toc.ol.extract()
+        toc.append(new_toc.ol)
+        self.write_file(nav_id, soup)
+
+    def _set_ncx_toc(self, ncx_id, new_toc):
+        play_order = 1
+        def li_to_navpoint(li):
+            # result:
+            # <navPoint id="navPoint{X}" playOrder="{X}">
+            #   <navLabel>
+            #     <text>{text}</text>
+            #   </navLabel>
+            #   <content src="{ncx_anchor}" />
+            #   {children}
+            # </navPoint>
+            nonlocal play_order
+            navpoint = new_toc.new_tag('navPoint', id=f'navPoint{play_order}', playOrder=play_order)
+            play_order += 1
+            label = new_toc.new_tag('navLabel')
+            text = new_toc.new_tag('text')
+            text.append(li['text'])
+            label.append(text)
+            navpoint.append(label)
+
+            content = new_toc.new_tag('content', src=li['ncx_anchor'])
+            navpoint.append(content)
+
+            children = li.ol.children if li.ol else []
+            children = [li_to_navpoint(li) for li in children]
+            for child in children:
+                navpoint.append(child)
+            return navpoint
+
+        # xml because we have to preserve the casing on navMap.
+        soup = bs4.BeautifulSoup(self.read_file(ncx_id), 'xml')
+        navmap = soup.navMap
+        for child in list(navmap.children):
+            child.extract()
+        for li in list(new_toc.ol.children):
+            navpoint = li_to_navpoint(li)
+            li.insert_before(navpoint)
+            li.extract()
+        for navpoint in list(new_toc.ol.children):
+            navmap.append(navpoint)
+        self.write_file(ncx_id, soup)
+
+    def generate_toc(self, max_level=None, linear_only=True):
+        '''
+        Generate the table of contents (toc.nav and nav.xhtml) by collecting
+        <h1>..<h6> throughout all of the text documents.
+        '''
+        def new_list(root=False):
+            r = bs4.BeautifulSoup('<ol></ol>', 'html.parser')
+            if root:
+                return r
+            return r.ol
+
+        nav_id = self.get_nav()
+        if nav_id:
+            nav_filepath = self.get_filepath(nav_id)
+
+        ncx_id = self.get_ncx()
+        if ncx_id:
+            ncx_filepath = self.get_filepath(ncx_id)
+
+        if not nav_id and not ncx_id:
+            return
+
+        toc = new_list(root=True)
+        current_level = None
+        current_list = toc.ol
+        toc_line_index = 1
+        HEADER_TAGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']
+
+        spine = self.get_spine_order(linear_only=linear_only)
+        spine = [s for s in spine if s != nav_id]
+
+        for file_id in spine:
+            file_path = self.get_filepath(file_id)
+            soup = self.read_file(file_id, soup=True)
+
+            for header in soup.descendants:
+                if header.name not in HEADER_TAGS:
+                    continue
+                # 'hX' -> X
+                level = int(header.name[1])
+                if max_level is not None and level > max_level:
+                    continue
+
+                header['id'] = f'toc_{toc_line_index}'
+                toc_line_index += 1
+
+                toc_line = toc.new_tag('li')
+                toc_line['text'] = header.text
+                if nav_id:
+                    relative = file_path.relative_to(nav_filepath.parent, simple=True)
+                    toc_line['nav_anchor'] = f'{relative}#{header["id"]}'
+                if ncx_id:
+                    relative = file_path.relative_to(ncx_filepath.parent, simple=True)
+                    toc_line['ncx_anchor'] = f'{relative}#{header["id"]}'
+
+                if current_level is None:
+                    current_level = level
+
+                while level < current_level:
+                    current_level -= 1
+                    # Because the sub-<ol> are actually a child of the last
+                    # <li> of the previous <ol>, we must .parent twice.
+                    current_list = current_list.parent
+                    if current_list.name == 'li':
+                        current_list = current_list.parent
+                    # If the file has headers in a non-ascending order, like an
+                    # h4 and then an h1, then backstepping too far will take us
+                    # out of the list. So at that point we can just snap
+                    # current_level and start using the root list again.
+                    if current_list == toc:
+                        current_level = level
+                        current_list = toc.ol
+
+                if level > current_level:
+                    current_level = level
+                    # In order to properly render nested <ol>, you're supposed
+                    # to make the new <ol> a child of the last <li> of the
+                    # previous <ol>.
+                    # Don't worry, .children can never be empty because on the
+                    # first <li> this condition can never occur, and new <ol>s
+                    # always receive a child right after being created.
+                    _l = new_list()
+                    list(current_list.children)[-1].append(_l)
+                    current_list = _l
+
+                current_list.append(toc_line)
+
+            # We have to save the id="toc_X" that we gave to all the headers.
+            self.write_file(file_id, soup)
+
+        if nav_id:
+            self._set_nav_toc(nav_id, copy.copy(toc))
+
+        if ncx_id:
+            self._set_ncx_toc(ncx_id, copy.copy(toc))
+
+
     def move_nav_to_end(self):
         '''
         Move the nav.xhtml file to the end and set linear=no.
@@ -944,6 +1105,19 @@ covercomesfirst:
     first, otherwise some /a/image.jpg will always be before /images/cover.jpg.
 '''.strip(),
 
+'generate_toc':
+'''
+generate_toc:
+    Regenerate the toc.ncx and nav.xhtml based on headers in the files.
+
+    > epubfile.py generate_toc book.epub <flags
+
+    flags:
+    --max_level X:
+        Only generate toc entries for headers up to level X.
+        That is, h1, h2, ... hX.
+''',
+
 'holdit':
 '''
 holdit:
@@ -1050,6 +1224,14 @@ def covercomesfirst_argparse(args):
         book = Epub.open(epub)
         covercomesfirst(book)
 
+def generate_toc_argparse(args):
+    epubs = [epub for pattern in args.epubs for epub in glob.glob(pattern)]
+    books = []
+    for epub in epubs:
+        book = Epub.open(epub)
+        book.generate_toc(max_level=int(args.max_level) if args.max_level else None)
+        book.save(epub)
+
 def holdit_argparse(args):
     epubs = [epub for pattern in args.epubs for epub in glob.glob(pattern)]
     books = []
@@ -1152,6 +1334,11 @@ def main(argv):
     p_covercomesfirst = subparsers.add_parser('covercomesfirst')
     p_covercomesfirst.add_argument('epubs', nargs='+', default=[])
     p_covercomesfirst.set_defaults(func=covercomesfirst_argparse)
+
+    p_generate_toc = subparsers.add_parser('generate_toc')
+    p_generate_toc.add_argument('epubs', nargs='+', default=[])
+    p_generate_toc.add_argument('--max_level', dest='max_level', default=None)
+    p_generate_toc.set_defaults(func=generate_toc_argparse)
 
     p_holdit = subparsers.add_parser('holdit')
     p_holdit.add_argument('epubs', nargs='+', default=[])
