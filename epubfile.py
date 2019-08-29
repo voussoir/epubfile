@@ -1051,13 +1051,19 @@ def covercomesfirst_argparse(args):
         covercomesfirst(book)
 
 def holdit_argparse(args):
-    book = Epub.open(args.epub)
-    print(book.root_directory.absolute_path)
+    epubs = [epub for pattern in args.epubs for epub in glob.glob(pattern)]
+    books = []
+    for epub in epubs:
+        book = Epub.open(epub)
+        print(f'{epub} = {book.root_directory.absolute_path}')
+        books.append((epub, book))
+
     input('Press Enter when ready.')
-    # Saving re-writes the opf from memory, which might undo any manual changes.
-    # So let's re-read it first.
-    book.read_opf(book.opf_filepath)
-    book.save(args.epub)
+    for (epub, book) in books:
+        # Saving re-writes the opf from memory, which might undo any manual changes.
+        # So let's re-read it first.
+        book.read_opf(book.opf_filepath)
+        book.save(epub)
 
 def merge(input_filepaths, output_filename, do_headerfile=False):
     book = Epub.new()
@@ -1148,7 +1154,7 @@ def main(argv):
     p_covercomesfirst.set_defaults(func=covercomesfirst_argparse)
 
     p_holdit = subparsers.add_parser('holdit')
-    p_holdit.add_argument('epub')
+    p_holdit.add_argument('epubs', nargs='+', default=[])
     p_holdit.set_defaults(func=holdit_argparse)
 
     p_merge = subparsers.add_parser('merge')
