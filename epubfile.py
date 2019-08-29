@@ -631,9 +631,9 @@ class Epub:
 
     # SPINE
     ############################################################################
-    def get_spine_order(self, *, only_linear=False):
+    def get_spine_order(self, *, linear_only=False):
         items = self.opf.spine.find_all('itemref')
-        if only_linear:
+        if linear_only:
             items = [x for x in items if x.get('linear') != 'no']
         return [x['idref'] for x in items]
         return ids
