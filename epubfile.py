@@ -88,9 +88,10 @@ NCX_TEMPLATE = '''
     <meta name="dtb:uid" content="{uuid}" />
   </head>
 <docTitle>
-   <text>Unknown</text>
+   <text>{title}</text>
 </docTitle>
 <navMap>
+{navpoints}
 </navMap>
 </ncx>
 '''.strip()
@@ -105,8 +106,7 @@ NAV_XHTML_TEMPLATE = '''
 <body epub:type="frontmatter">
   <nav epub:type="toc" id="toc">
     <h1>Table of Contents</h1>
-    <ol>
-    </ol>
+    {toc_contents}
   </nav>
 </body>
 </html>
@@ -314,8 +314,8 @@ class Epub:
         writefile(root.join('mimetype'), MIMETYPE_FILE_TEMPLATE)
         writefile(root.join('META-INF/container.xml'), CONTAINER_XML_TEMPLATE)
         writefile(root.join('OEBPS/content.opf'), OPF_TEMPLATE.format(uuid=uid))
-        writefile(root.join('OEBPS/toc.ncx'), NCX_TEMPLATE.format(uuid=uid))
-        writefile(root.join('OEBPS/Text/nav.xhtml'), NAV_XHTML_TEMPLATE)
+        writefile(root.join('OEBPS/toc.ncx'), NCX_TEMPLATE.format(uuid=uid, title='Unknown', navpoints=''))
+        writefile(root.join('OEBPS/Text/nav.xhtml'), NAV_XHTML_TEMPLATE.format(toc_contents=''))
 
         return cls(tempdir)
 
