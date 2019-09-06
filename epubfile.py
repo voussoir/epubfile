@@ -27,28 +27,28 @@ HTML_LINK_PROPERTIES = {
 }
 
 EXTENSION_MIMETYPES = {
-    'html': 'application/xhtml+xml',
-    'xhtml': 'application/xhtml+xml',
     'htm': 'application/xhtml+xml',
+    'html': 'application/xhtml+xml',
+    'otf': 'font/otf',
+    'pls': 'application/pls+xml',
     'smi': 'application/smil+xml',
     'smil': 'application/smil+xml',
     'sml': 'application/smil+xml',
-    'pls': 'application/pls+xml',
-    'otf': 'font/otf',
     'ttf': 'font/ttf',
     'woff': 'font/woff',
     'woff2': 'font/woff2',
+    'xhtml': 'application/xhtml+xml',
 }
 
 MIMETYPE_DIRECTORIES = {
-    'application/x-dtbncx+xml': '.',
     'application/font-sfnt': 'Fonts',
+    'application/x-dtbncx+xml': '.',
     'application/x-font-ttf': 'Fonts',
     'application/xhtml+xml': 'Text',
+    'audio': 'Audio',
     'font': 'Fonts',
     'image': 'Images',
     'text/css': 'Styles',
-    'audio': 'Audio',
     'video': 'Video',
 }
 
