@@ -741,6 +741,21 @@ class Epub:
 
     @staticmethod
     def _fix_interlinking_helper(link, rename_map, relative_to, old_relative_to=None):
+        '''
+        Given an old link that was found in one of the documents, and the
+        rename_map, produce a new link that points to the new location.
+
+        relative_to controls the relative pathing for the new link.
+        For example, the links inside a  text document usually need to step from
+        Text/ to ../Images/ to link an image. But the links inside the OPF file
+        start with Images/ right away.
+
+        old_relative_to is needed when, for example, all of the files were in a
+        single directory together, and now we are splitting them into Text/,
+        Images/, etc. In this case, recognizing the old link requires that we
+        understand the old relative location, then we can correct it using the
+        new relative location.
+        '''
         if link is None:
             return None
 
@@ -767,6 +782,10 @@ class Epub:
 
     @staticmethod
     def _fix_interlinking_css_helper(tag):
+        '''
+        Given a <style> tag or a tag with a style="" attribute, fix interlinking
+        for things like `background-image: url("");`.
+        '''
         links = []
         commit = lambda: None
 
