@@ -1256,10 +1256,10 @@ def merge(input_filepaths, output_filename, do_headerfile=False):
     index_length = len(str(len(input_filepaths)))
     rand_prefix = random_string(3, string.digits)
 
-    input_filepaths = [pathclass.Path(p) for p in input_filepaths]
+    input_filepaths = [pathclass.Path(p) for pattern in input_filepaths for p in glob.glob(pattern)]
 
     for (index, input_filepath) in enumerate(input_filepaths):
-        print(f'Merging {input_filepath}.')
+        print(f'Merging {input_filepath.absolute_path}.')
         prefix = f'{rand_prefix}_{index:>0{index_length}}_{{}}'
         input_book = Epub.open(input_filepath)
         input_book.normalize_directory_structure()
