@@ -276,12 +276,14 @@ class NotInSpine(EpubfileException):
 
 
 class Epub:
-    def __init__(self, directory):
+    def __init__(self, directory, _original_epub_filepath=None):
         if isinstance(directory, tempfile.TemporaryDirectory):
             self._tempdir_reference = directory
             directory = directory.name
 
         self.root_directory = pathclass.Path(directory, force_sep='/')
+
+        self._original_path = _original_epub_filepath or self.root_directory.absolute_path
 
         self.opf_filepath = None
         self.opf = None
@@ -325,7 +327,7 @@ class Epub:
     def open(cls, epub_filepath):
         extract_to = tempfile.TemporaryDirectory(prefix='epubfile-')
         extract_epub(epub_filepath, extract_to.name)
-        return cls(extract_to)
+        return cls(extract_to, _original_epub_filepath=epub_filepath)
 
     def save(self, epub_filepath):
         self.write_opf()
