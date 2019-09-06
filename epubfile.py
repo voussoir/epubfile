@@ -38,6 +38,7 @@ EXTENSION_MIMETYPES = {
     'woff': 'font/woff',
     'woff2': 'font/woff2',
     'xhtml': 'application/xhtml+xml',
+    'xpgt': 'application/vnd.adobe-page-template+xml',
 }
 
 MIMETYPE_DIRECTORIES = {
