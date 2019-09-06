@@ -43,6 +43,7 @@ EXTENSION_MIMETYPES = {
 MIMETYPE_DIRECTORIES = {
     'application/x-dtbncx+xml': '.',
     'application/font-sfnt': 'Fonts',
+    'application/x-font-ttf': 'Fonts',
     'application/xhtml+xml': 'Text',
     'font': 'Fonts',
     'image': 'Images',
