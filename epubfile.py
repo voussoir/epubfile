@@ -1085,10 +1085,15 @@ class Epub:
 
             directory = get_directory_for_mimetype(manifest_item['media-type'])
             directory = self.opf_filepath.parent.with_child(directory)
-            os.makedirs(directory.absolute_path, exist_ok=True)
+            if directory.exists:
+                # On Windows, this will fix any incorrect casing.
+                # On Linux it is inert.
+                os.rename(directory.absolute_path, directory.absolute_path)
+            else:
+                os.makedirs(directory.absolute_path)
 
             new_filepath = directory.with_child(old_filepath.basename)
-            if new_filepath != old_filepath:
+            if new_filepath.absolute_path != old_filepath.absolute_path:
                 rename_map[old_filepath] = new_filepath
                 os.rename(old_filepath.absolute_path, new_filepath.absolute_path)
             manifest_item['href'] = new_filepath.relative_to(self.opf_filepath.parent, simple=True)
