@@ -262,6 +262,9 @@ class EpubfileException(Exception):
     def __str__(self):
         return self.error_message
 
+class InvalidEpub(EpubfileException):
+    error_message = '{} is invalid: {}'
+
 class FileExists(EpubfileException):
     error_message = 'There is already a file at {}.'
 
@@ -302,6 +305,21 @@ class Epub:
         if self.opf.manifest.find('item', {'id': id}):
             raise IDExists(id)
 
+    # VALIDATION
+    ############################################################################
+    def auto_correct_and_validate(self):
+        # Ensure we have a mimetype file.
+        mimetype_file = self.root_directory.with_child('mimetype')
+        if not mimetype_file.exists:
+            with open(mimetype_file.absolute_path, 'w', encoding='utf-8') as handle:
+                handle.write(MIMETYPE_FILE_TEMPLATE)
+
+        # Assert that all manifest items exist on disk.
+        for item in self.get_manifest_items(soup=True):
+            filepath = self.get_filepath(item['id'])
+            if not filepath.exists:
+                raise InvalidEpub(self._original_path, f'Manifest item {item["id"]} = {item["href"]} does not exist.')
+
     # LOADING AND SAVING
     ############################################################################
     @classmethod
@@ -331,6 +349,7 @@ class Epub:
 
     def save(self, epub_filepath):
         self.write_opf()
+        self.auto_correct_and_validate()
         compress_epub(self.root_directory, epub_filepath)
 
     # CONTAINER & OPF
