@@ -1152,12 +1152,20 @@ covercomesfirst:
     first, otherwise some /a/image.jpg will always be before /images/cover.jpg.
 '''.strip(),
 
+'exec':
+'''
+exec:
+    Execute your own Python code against the book.
+
+    > epubfile.py exec book.epub --command "book._____()"
+'''.strip(),
+
 'generate_toc':
 '''
 generate_toc:
     Regenerate the toc.ncx and nav.xhtml based on headers in the files.
 
-    > epubfile.py generate_toc book.epub <flags
+    > epubfile.py generate_toc book.epub <flags>
 
     flags:
     --max_level X:
@@ -1271,6 +1279,14 @@ def covercomesfirst_argparse(args):
         book = Epub.open(epub)
         covercomesfirst(book)
 
+def exec_argparse(args):
+    epubs = [epub for pattern in args.epubs for epub in glob.glob(pattern)]
+    for epub in epubs:
+        print(epub)
+        book = Epub.open(epub)
+        exec(args.command)
+        book.save(epub)
+
 def generate_toc_argparse(args):
     epubs = [epub for pattern in args.epubs for epub in glob.glob(pattern)]
     books = []
@@ -1318,7 +1334,7 @@ def merge(input_filepaths, output_filename, do_headerfile=False):
             new_basename = prefix.format(old_basename)
             basename_map[id] = new_basename
 
-        # Don't worry, we're not going to save this!
+        # Don't worry, we're not going to save over the input book!
         input_book.rename_file(basename_map)
 
         if do_headerfile:
@@ -1380,6 +1396,11 @@ def main(argv):
     p_covercomesfirst = subparsers.add_parser('covercomesfirst')
     p_covercomesfirst.add_argument('epubs', nargs='+', default=[])
     p_covercomesfirst.set_defaults(func=covercomesfirst_argparse)
+
+    p_exec = subparsers.add_parser('exec')
+    p_exec.add_argument('epubs', nargs='+', default=[])
+    p_exec.add_argument('--command', dest='command', default=None, required=True)
+    p_exec.set_defaults(func=exec_argparse)
 
     p_generate_toc = subparsers.add_parser('generate_toc')
     p_generate_toc.add_argument('epubs', nargs='+', default=[])
