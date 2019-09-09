@@ -1297,10 +1297,9 @@ def holdit_argparse(args):
 def merge(input_filepaths, output_filename, do_headerfile=False):
     book = Epub.new()
 
+    input_filepaths = [pathclass.Path(p) for pattern in input_filepaths for p in glob.glob(pattern)]
     index_length = len(str(len(input_filepaths)))
     rand_prefix = random_string(3, string.digits)
-
-    input_filepaths = [pathclass.Path(p) for pattern in input_filepaths for p in glob.glob(pattern)]
 
     for (index, input_filepath) in enumerate(input_filepaths):
         print(f'Merging {input_filepath.absolute_path}.')
