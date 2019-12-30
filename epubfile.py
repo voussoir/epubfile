@@ -1198,6 +1198,10 @@ merge:
     --headerfile:
         Add a file before each book with an <h1> containing its title.
 
+    --number_headerfile:
+        In the headerfile, the <h1> will start with the book's index, like
+        "01. First Book"
+
     -y | --autoyes:
         Overwrite the output file without prompting.
 '''.strip(),
@@ -1317,7 +1321,7 @@ def holdit_argparse(args):
         book.read_opf(book.opf_filepath)
         book.save(epub)
 
-def merge(input_filepaths, output_filename, do_headerfile=False):
+def merge(input_filepaths, output_filename, do_headerfile=False, number_headerfile=False):
     book = Epub.new()
 
     input_filepaths = [pathclass.Path(p) for pattern in input_filepaths for p in glob.glob(pattern)]
@@ -1352,8 +1356,9 @@ def merge(input_filepaths, output_filename, do_headerfile=False):
                 title = input_book.get_titles()[0]
             except IndexError:
                 title = input_filepath.replace_extension('').basename
-            finally:
-                content += f'<h1>{html.escape(title)}</h1>'
+            if number_headerfile:
+                title = f'{index:>0{index_length}}. {title}'
+            content += f'<h1>{html.escape(title)}</h1>'
 
             try:
                 author = input_book.get_authors()[0]
@@ -1381,7 +1386,12 @@ def merge_argparse(args):
         if not ok:
             raise ValueError(f'{args.output} exists.')
 
-    return merge(input_filepaths=args.epubs, output_filename=args.output, do_headerfile=args.headerfile)
+    return merge(
+        input_filepaths=args.epubs,
+        output_filename=args.output,
+        do_headerfile=args.headerfile,
+        number_headerfile=args.number_headerfile,
+    )
 
 def normalize_argparse(args):
     epubs = [epub for pattern in args.epubs for epub in glob.glob(pattern)]
@@ -1425,6 +1435,7 @@ def main(argv):
     p_merge.add_argument('epubs', nargs='+', default=[])
     p_merge.add_argument('--output', dest='output', default=None, required=True)
     p_merge.add_argument('--headerfile', dest='headerfile', action='store_true')
+    p_merge.add_argument('--number_headerfile', dest='number_headerfile', action='store_true')
     p_merge.add_argument('-y', '--autoyes', dest='autoyes', action='store_true')
     p_merge.set_defaults(func=merge_argparse)
 
