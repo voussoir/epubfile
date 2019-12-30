@@ -1222,18 +1222,19 @@ def random_string(length, characters=string.ascii_lowercase):
 def addfile_argparse(args):
     book = Epub.open(args.epub)
 
-    for file in args.files:
-        print(f'Adding file {file}.')
-        file = pathclass.Path(file)
-        try:
-            book.easy_add_file(file)
-        except (IDExists, FileExists) as exc:
-            rand_suffix = random_string(3, string.digits)
-            base = file.replace_extension('').basename
-            id = f'{base}_{rand_suffix}'
-            basename = f'{base}_{rand_suffix}{file.dot_extension}'
-            content = open(file.absolute_path, 'rb').read()
-            book.add_file(id, basename, content)
+    for pattern in args.files:
+        for file in glob.glob(pattern):
+            print(f'Adding file {file}.')
+            file = pathclass.Path(file)
+            try:
+                book.easy_add_file(file)
+            except (IDExists, FileExists) as exc:
+                rand_suffix = random_string(3, string.digits)
+                base = file.replace_extension('').basename
+                id = f'{base}_{rand_suffix}'
+                basename = f'{base}_{rand_suffix}{file.dot_extension}'
+                content = open(file.absolute_path, 'rb').read()
+                book.add_file(id, basename, content)
 
     book.move_nav_to_end()
     book.save(args.epub)
