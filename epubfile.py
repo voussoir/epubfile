@@ -1325,6 +1325,8 @@ def merge(input_filepaths, output_filename, do_headerfile=False):
     rand_prefix = random_string(3, string.digits)
 
     for (index, input_filepath) in enumerate(input_filepaths):
+        # Number books from 1 for human sanity.
+        index += 1
         print(f'Merging {input_filepath.absolute_path}.')
         prefix = f'{rand_prefix}_{index:>0{index_length}}_{{}}'
         input_book = Epub.open(input_filepath)
@@ -1364,7 +1366,7 @@ def merge(input_filepaths, output_filename, do_headerfile=False):
             book.add_file(headerfile_id, headerfile_basename, content)
 
         for id in manifest_ids:
-            new_id = f'{rand_prefix}_{index:>0{index_length}}_{id}'
+            new_id = prefix.format(id)
             new_basename = basename_map[id]
             book.add_file(new_id, new_basename, input_book.read_file(id))
 
