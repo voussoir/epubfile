@@ -1036,7 +1036,6 @@ class Epub:
         if ncx_id:
             self._set_ncx_toc(ncx_id, copy.copy(toc))
 
-
     def move_nav_to_end(self):
         '''
         Move the nav.xhtml file to the end and set linear=no.
@@ -1102,6 +1101,11 @@ class Epub:
         for id in self.get_texts():
             self.fix_interlinking_text(id, rename_map, old_relative_to=old_filepaths[id].parent)
         self.fix_interlinking_ncx(rename_map, old_relative_to=old_ncx_parent)
+
+    def normalize_opf(self):
+        for tag in self.opf.descendants:
+            if tag.name:
+                tag.name = tag.name.replace('opf:', '')
 
 
 # COMMAND LINE TOOLS
@@ -1379,6 +1383,7 @@ def normalize_argparse(args):
     for epub in epubs:
         print(epub)
         book = Epub.open(epub)
+        book.normalize_opf()
         book.normalize_directory_structure()
         book.move_nav_to_end()
         book.save(epub)
