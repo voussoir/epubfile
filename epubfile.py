@@ -1124,6 +1124,8 @@ DOCSTRING = '''
 
 {covercomesfirst}
 
+{generate_toc}
+
 {holdit}
 
 {merge}
@@ -1175,7 +1177,7 @@ generate_toc:
     --max_level X:
         Only generate toc entries for headers up to level X.
         That is, h1, h2, ... hX.
-''',
+'''.strip(),
 
 'holdit':
 '''
@@ -1183,7 +1185,7 @@ holdit:
     Extract the book and leave it open for manual editing, then save.
 
     > epubfile.py holdit book.epub
-''',
+'''.strip(),
 
 'merge':
 '''
