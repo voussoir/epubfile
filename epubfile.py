@@ -1106,6 +1106,9 @@ class Epub:
         for tag in self.opf.descendants:
             if tag.name:
                 tag.name = tag.name.replace('opf:', '')
+        for item in self.get_manifest_items(soup=True):
+            if item['href'] in ['toc.ncx', 'Misc/toc.ncx']:
+                item['media-type'] = 'application/x-dtbncx+xml'
 
 
 # COMMAND LINE TOOLS
