@@ -1284,14 +1284,13 @@ def covercomesfirst(book):
 
     book.rename_file(rename_map)
 
-    book.save(args.epub)
-
 def covercomesfirst_argparse(args):
     epubs = [epub for pattern in args.epubs for epub in glob.glob(pattern)]
     for epub in epubs:
         print(epub)
         book = Epub.open(epub)
         covercomesfirst(book)
+        book.save(args.epub)
 
 def exec_argparse(args):
     epubs = [epub for pattern in args.epubs for epub in glob.glob(pattern)]
