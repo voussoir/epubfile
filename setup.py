@@ -5,7 +5,7 @@ setuptools.setup(
     py_modules=['epubfile'],
     version='0.0.4',
     author='voussoir',
-    author_email='ethan@voussoir.net',
+    author_email='pypi@voussoir.net',
     description='simple epub file reading and writing',
     long_description=open('README.md', 'r').read(),
     long_description_content_type='text/markdown',
