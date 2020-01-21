@@ -1114,13 +1114,13 @@ class Epub:
 # COMMAND LINE TOOLS
 ################################################################################
 import argparse
-import glob
 import html
 import random
 import string
 import sys
 
 from voussoirkit import betterhelp
+from voussoirkit import winglob
 
 DOCSTRING = '''
 {addfile}
@@ -1230,7 +1230,7 @@ def addfile_argparse(args):
     book = Epub.open(args.epub)
 
     for pattern in args.files:
-        for file in glob.glob(pattern):
+        for file in winglob.glob(pattern):
             print(f'Adding file {file}.')
             file = pathclass.Path(file)
             try:
@@ -1285,7 +1285,7 @@ def covercomesfirst(book):
     book.rename_file(rename_map)
 
 def covercomesfirst_argparse(args):
-    epubs = [epub for pattern in args.epubs for epub in glob.glob(pattern)]
+    epubs = [epub for pattern in args.epubs for epub in winglob.glob(pattern)]
     for epub in epubs:
         print(epub)
         book = Epub.open(epub)
@@ -1293,7 +1293,7 @@ def covercomesfirst_argparse(args):
         book.save(args.epub)
 
 def exec_argparse(args):
-    epubs = [epub for pattern in args.epubs for epub in glob.glob(pattern)]
+    epubs = [epub for pattern in args.epubs for epub in winglob.glob(pattern)]
     for epub in epubs:
         print(epub)
         book = Epub.open(epub)
@@ -1301,7 +1301,7 @@ def exec_argparse(args):
         book.save(epub)
 
 def generate_toc_argparse(args):
-    epubs = [epub for pattern in args.epubs for epub in glob.glob(pattern)]
+    epubs = [epub for pattern in args.epubs for epub in winglob.glob(pattern)]
     books = []
     for epub in epubs:
         book = Epub.open(epub)
@@ -1309,7 +1309,7 @@ def generate_toc_argparse(args):
         book.save(epub)
 
 def holdit_argparse(args):
-    epubs = [epub for pattern in args.epubs for epub in glob.glob(pattern)]
+    epubs = [epub for pattern in args.epubs for epub in winglob.glob(pattern)]
     books = []
     for epub in epubs:
         book = Epub.open(epub)
@@ -1326,7 +1326,7 @@ def holdit_argparse(args):
 def merge(input_filepaths, output_filename, do_headerfile=False, number_headerfile=False):
     book = Epub.new()
 
-    input_filepaths = [pathclass.Path(p) for pattern in input_filepaths for p in glob.glob(pattern)]
+    input_filepaths = [pathclass.Path(p) for pattern in input_filepaths for p in winglob.glob(pattern)]
     index_length = len(str(len(input_filepaths)))
     rand_prefix = random_string(3, string.digits)
 
@@ -1396,7 +1396,7 @@ def merge_argparse(args):
     )
 
 def normalize_argparse(args):
-    epubs = [epub for pattern in args.epubs for epub in glob.glob(pattern)]
+    epubs = [epub for pattern in args.epubs for epub in winglob.glob(pattern)]
     for epub in epubs:
         print(epub)
         book = Epub.open(epub)
