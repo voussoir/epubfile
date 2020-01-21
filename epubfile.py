@@ -127,6 +127,8 @@ TEXT_TEMPLATE = '''
 '''.strip()
 
 
+# EPUB COMPRESSION
+################################################################################
 def compress_epub(directory, epub_filepath):
     directory = pathclass.Path(directory)
     epub_filepath = pathclass.Path(epub_filepath)
@@ -156,6 +158,8 @@ def extract_epub(epub_filepath, directory):
     with zipfile.ZipFile(epub_filepath.absolute_path, 'r') as z:
         z.extractall(directory.absolute_path)
 
+# XHTML TOOLS
+################################################################################
 def fix_xhtml(xhtml, return_soup=False):
     if isinstance(xhtml, bs4.BeautifulSoup):
         soup = xhtml
@@ -241,6 +245,8 @@ def promote_xhtml_headers(xhtml, return_soup=False):
     ]
     return xhtml_replacements(xhtml, replacements, return_soup=return_soup)
 
+# MIMETYPE DECISIONMAKERS
+################################################################################
 def get_directory_for_mimetype(mime):
     directory = (
         MIMETYPE_DIRECTORIES.get(mime) or
@@ -258,6 +264,8 @@ def get_mimetype_for_basename(basename):
     )
     return mime
 
+# OPF ELEMENT GENERATORS
+################################################################################
 def make_manifest_item(id, href, mime):
     manifest_item = f'<item id="{id}" href="{href}" media-type="{mime}"/>'
     # 'html.parser' just for having the simplest output.
