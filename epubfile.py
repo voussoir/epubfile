@@ -311,10 +311,9 @@ class Epub:
 
         self._original_path = _original_epub_filepath or self.root_directory.absolute_path
 
-        self.opf_filepath = None
-        self.opf = None
-
-        self.read_opf(self.get_opfs()[0])
+        opfs = self.get_opfs()
+        self.opf_filepath = opfs[0]
+        self.opf = self.read_opf(self.opf_filepath)
 
     def __repr__(self):
         return f'Epub({repr(self.root_directory.absolute_path)})'
@@ -402,10 +401,10 @@ class Epub:
         # parsing only the metadata block, but loses all namespaces when parsing
         # the whole doc. 'lxml' wraps the content in <html><body> and also
         # botches the metas so it's not any better than html.parser.
-        self.opf = bs4.BeautifulSoup(rootfile_xml, 'html.parser')
+        opf = bs4.BeautifulSoup(rootfile_xml, 'html.parser')
 
         # Let's fix those metas.
-        metas = self.opf.select('meta')
+        metas = opf.select('meta')
         for meta in metas:
             neighbor = meta.next
             if neighbor.parent != meta.parent:
@@ -415,8 +414,7 @@ class Epub:
                 continue
             meta.append(neighbor.extract().strip())
 
-        self.opf_filepath = rootfile
-        return self.opf
+        return opf
 
     def write_container_xml(self, container):
         if isinstance(container, bs4.BeautifulSoup):
