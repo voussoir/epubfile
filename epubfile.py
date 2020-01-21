@@ -158,6 +158,26 @@ def extract_epub(epub_filepath, directory):
     with zipfile.ZipFile(epub_filepath.absolute_path, 'r') as z:
         z.extractall(directory.absolute_path)
 
+def demote_xhtml_headers(xhtml, return_soup=False):
+    if isinstance(xhtml, bs4.BeautifulSoup):
+        xhtml = str(xhtml)
+
+    replacements = [
+        (r'<h5([^>]*?>.*?)</h5>', r'<h6\1</h6>'),
+        (r'<h4([^>]*?>.*?)</h4>', r'<h5\1</h5>'),
+        (r'<h3([^>]*?>.*?)</h3>', r'<h4\1</h4>'),
+        (r'<h2([^>]*?>.*?)</h2>', r'<h3\1</h3>'),
+        (r'<h1([^>]*?>.*?)</h1>', r'<h2\1</h2>'),
+    ]
+    for (re_from, re_to) in replacements:
+        xhtml = re.sub(re_from, re_to, xhtml, flags=re.DOTALL)
+
+    if return_soup:
+        soup = bs4.BeautifulSoup(xhtml, 'html5lib')
+        return soup
+
+    return xhtml
+
 def fix_xhtml(xhtml, return_soup=False):
     if isinstance(xhtml, bs4.BeautifulSoup):
         soup = xhtml
@@ -1323,7 +1343,13 @@ def holdit_argparse(args):
         book.read_opf(book.opf_filepath)
         book.save(epub)
 
-def merge(input_filepaths, output_filename, do_headerfile=False, number_headerfile=False):
+def merge(
+        input_filepaths,
+        output_filename,
+        demote_headers=False,
+        do_headerfile=False,
+        number_headerfile=False,
+    ):
     book = Epub.new()
 
     input_filepaths = [pathclass.Path(p) for pattern in input_filepaths for p in winglob.glob(pattern)]
@@ -1375,7 +1401,13 @@ def merge(input_filepaths, output_filename, do_headerfile=False, number_headerfi
         for id in manifest_ids:
             new_id = prefix.format(id)
             new_basename = basename_map[id]
-            book.add_file(new_id, new_basename, input_book.read_file(id))
+            if demote_headers:
+                content = input_book.read_file(id, soup=True)
+                if isinstance(content, bs4.BeautifulSoup):
+                    content = demote_xhtml_headers(content)
+            else:
+                content = input_book.read_file(id)
+            book.add_file(new_id, new_basename, content)
 
     book.move_nav_to_end()
     book.save(output_filename)
@@ -1391,6 +1423,7 @@ def merge_argparse(args):
     return merge(
         input_filepaths=args.epubs,
         output_filename=args.output,
+        demote_headers=args.demote_headers,
         do_headerfile=args.headerfile,
         number_headerfile=args.number_headerfile,
     )
@@ -1437,6 +1470,7 @@ def main(argv):
     p_merge.add_argument('epubs', nargs='+', default=[])
     p_merge.add_argument('--output', dest='output', default=None, required=True)
     p_merge.add_argument('--headerfile', dest='headerfile', action='store_true')
+    p_merge.add_argument('--demote_headers', dest='demote_headers', action='store_true')
     p_merge.add_argument('--number_headerfile', dest='number_headerfile', action='store_true')
     p_merge.add_argument('-y', '--autoyes', dest='autoyes', action='store_true')
     p_merge.set_defaults(func=merge_argparse)
