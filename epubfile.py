@@ -12,8 +12,6 @@ import tinycss2
 
 from voussoirkit import pathclass
 
-MIMETYPE_CONTENT = 'application/epub+zip'
-
 HTML_LINK_PROPERTIES = {
     'a': ['href'],
     'audio': ['src'],
