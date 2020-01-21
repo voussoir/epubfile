@@ -479,12 +479,12 @@ class Epub:
             )
 
     def delete_file(self, id):
-        os.remove(self.get_filepath(id).absolute_path)
+        manifest_item = self.opf.manifest.find('item', {'id': id})
+        manifest_item.extract()
         spine_item = self.opf.spine.find('itemref', {'idref': id})
         if spine_item:
             spine_item.extract()
-        manifest_item = self.opf.manifest.find('item', {'id': id})
-        manifest_item.extract()
+        os.remove(self.get_filepath(id).absolute_path)
 
     def get_filepath(self, id):
         href = self.opf.manifest.find('item', {'id': id})['href']
