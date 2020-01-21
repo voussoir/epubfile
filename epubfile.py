@@ -156,26 +156,6 @@ def extract_epub(epub_filepath, directory):
     with zipfile.ZipFile(epub_filepath.absolute_path, 'r') as z:
         z.extractall(directory.absolute_path)
 
-def demote_xhtml_headers(xhtml, return_soup=False):
-    if isinstance(xhtml, bs4.BeautifulSoup):
-        xhtml = str(xhtml)
-
-    replacements = [
-        (r'<h5([^>]*?>.*?)</h5>', r'<h6\1</h6>'),
-        (r'<h4([^>]*?>.*?)</h4>', r'<h5\1</h5>'),
-        (r'<h3([^>]*?>.*?)</h3>', r'<h4\1</h4>'),
-        (r'<h2([^>]*?>.*?)</h2>', r'<h3\1</h3>'),
-        (r'<h1([^>]*?>.*?)</h1>', r'<h2\1</h2>'),
-    ]
-    for (re_from, re_to) in replacements:
-        xhtml = re.sub(re_from, re_to, xhtml, flags=re.DOTALL)
-
-    if return_soup:
-        soup = bs4.BeautifulSoup(xhtml, 'html5lib')
-        return soup
-
-    return xhtml
-
 def fix_xhtml(xhtml, return_soup=False):
     if isinstance(xhtml, bs4.BeautifulSoup):
         soup = xhtml
@@ -227,6 +207,39 @@ def fix_xhtml(xhtml, return_soup=False):
     if return_soup:
         return soup
     return str(soup)
+
+def xhtml_replacements(xhtml, replacements, return_soup=False):
+    if isinstance(xhtml, bs4.BeautifulSoup):
+        xhtml = str(xhtml)
+
+    for (re_from, re_to) in replacements:
+        xhtml = re.sub(re_from, re_to, xhtml, flags=re.DOTALL)
+
+    if return_soup:
+        soup = bs4.BeautifulSoup(xhtml, 'html5lib')
+        return soup
+
+    return xhtml
+
+def demote_xhtml_headers(xhtml, return_soup=False):
+    replacements = [
+        (r'<h5([^>]*?>.*?)</h5>', r'<h6\1</h6>'),
+        (r'<h4([^>]*?>.*?)</h4>', r'<h5\1</h5>'),
+        (r'<h3([^>]*?>.*?)</h3>', r'<h4\1</h4>'),
+        (r'<h2([^>]*?>.*?)</h2>', r'<h3\1</h3>'),
+        (r'<h1([^>]*?>.*?)</h1>', r'<h2\1</h2>'),
+    ]
+    return xhtml_replacements(xhtml, replacements, return_soup=return_soup)
+
+def promote_xhtml_headers(xhtml, return_soup=False):
+    replacements = [
+        (r'<h2([^>]*?>.*?)</h2>', r'<h1\1</h1>'),
+        (r'<h3([^>]*?>.*?)</h3>', r'<h2\1</h2>'),
+        (r'<h4([^>]*?>.*?)</h4>', r'<h3\1</h3>'),
+        (r'<h5([^>]*?>.*?)</h5>', r'<h4\1</h4>'),
+        (r'<h6([^>]*?>.*?)</h6>', r'<h5\1</h5>'),
+    ]
+    return xhtml_replacements(xhtml, replacements, return_soup=return_soup)
 
 def get_directory_for_mimetype(mime):
     directory = (
