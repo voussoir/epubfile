@@ -258,6 +258,7 @@ def make_meta_item(content=None, attrs=None):
         meta_item = f'<meta>{content}</meta>'
     else:
         meta_item = f'<meta/>'
+    # 'html.parser' just for having the simplest output.
     meta_item = bs4.BeautifulSoup(meta_item, 'html.parser')
     if attrs:
         meta_item.attrs.update(attrs)
@@ -302,6 +303,7 @@ class NotInSpine(EpubfileException):
 class Epub:
     def __init__(self, directory, _original_epub_filepath=None):
         if isinstance(directory, tempfile.TemporaryDirectory):
+            # Hold a reference so the tempdir doesn't clean up.
             self._tempdir_reference = directory
             directory = directory.name
 
@@ -385,7 +387,8 @@ class Epub:
     def read_container_xml(self):
         container_xml_path = self.root_directory.join('META-INF/container.xml')
         container = open(container_xml_path.absolute_path, 'r', encoding='utf-8')
-        # 'xml' and 'html.parser' seem about even here except that html.parser doesn't self-close.
+        # 'xml' and 'html.parser' seem about even here except that html.parser
+        # doesn't self-close.
         container = bs4.BeautifulSoup(container, 'xml')
         return container
 
@@ -400,11 +403,13 @@ class Epub:
         # the whole doc. 'lxml' wraps the content in <html><body> and also
         # botches the metas so it's not any better than html.parser.
         self.opf = bs4.BeautifulSoup(rootfile_xml, 'html.parser')
+
         # Let's fix those metas.
         metas = self.opf.select('meta')
         for meta in metas:
             neighbor = meta.next
             if neighbor.parent != meta.parent:
+                # This happens on the last meta, neighbor is outside of the manifest
                 break
             if not isinstance(neighbor, bs4.element.NavigableString):
                 continue
@@ -447,7 +452,7 @@ class Epub:
         elif isinstance(content, bytes):
             handle = open(filepath.absolute_path, 'wb')
         else:
-            raise TypeError(type(content))
+            raise TypeError(f'content should be str or bytes, not {type(content)}.')
 
         with handle:
             handle.write(content)
@@ -491,7 +496,7 @@ class Epub:
 
     def open_file(self, id, mode):
         if mode not in ('r', 'w'):
-            raise ValueError(f'Mode {mode} should be either r or w.')
+            raise ValueError(f'mode should be either r or w, not {mode}.')
 
         filepath = self.get_filepath(id)
         mime = self.opf.manifest.find('item', {'id': id})['media-type']
@@ -898,6 +903,9 @@ class Epub:
         self.fix_interlinking_ncx(rename_map)
 
     def _set_nav_toc(self, nav_id, new_toc):
+        '''
+        Write the table of contents created by `generate_toc` to the nav file.
+        '''
         for li in new_toc.find_all('li'):
             href = li['nav_anchor']
             atag = new_toc.new_tag('a')
@@ -919,6 +927,9 @@ class Epub:
         self.write_file(nav_id, soup)
 
     def _set_ncx_toc(self, ncx_id, new_toc):
+        '''
+        Write the table of contents created by `generate_toc` to the ncx file.
+        '''
         play_order = 1
         def li_to_navpoint(li):
             # result:
@@ -964,6 +975,10 @@ class Epub:
         '''
         Generate the table of contents (toc.nav and nav.xhtml) by collecting
         <h1>..<h6> throughout all of the text documents.
+
+        max_level: If provided, only collect the headers from h1..hX, inclusive.
+
+        linear_only: Ignore spine items that are marked as linear=no.
         '''
         def new_list(root=False):
             r = bs4.BeautifulSoup('<ol></ol>', 'html.parser')
@@ -1058,7 +1073,7 @@ class Epub:
 
     def move_nav_to_end(self):
         '''
-        Move the nav.xhtml file to the end and set linear=no.
+        Move the nav.xhtml file to the end and set its linear=no.
         '''
         nav = self.get_nav()
         if not nav:
