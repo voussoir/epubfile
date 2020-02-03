@@ -1296,7 +1296,7 @@ def addfile_argparse(args):
                 rand_suffix = random_string(3, string.digits)
                 base = file.replace_extension('').basename
                 id = f'{base}_{rand_suffix}'
-                basename = f'{base}_{rand_suffix}{file.dot_extension}'
+                basename = f'{base}_{rand_suffix}{file.extension.with_dot}'
                 content = open(file.absolute_path, 'rb').read()
                 book.add_file(id, basename, content)
 
