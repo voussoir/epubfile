@@ -1097,11 +1097,11 @@ class Epub:
             return
 
         spine = self.get_spine_order()
-        for (index, id) in enumerate(spine):
-            if id == nav:
-                spine.append(spine.pop(index))
-                break
-        else:
+
+        try:
+            index = spine.index(nav)
+            spine.append(spine.pop(index))
+        except ValueError:
             spine.append(nav)
 
         self.set_spine_order(spine)
