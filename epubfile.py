@@ -359,7 +359,8 @@ class Epub:
         for item in self.get_manifest_items(soup=True):
             filepath = self.get_filepath(item['id'])
             if not filepath.exists:
-                raise InvalidEpub(self._original_path, f'Manifest item {item["id"]} = {item["href"]} does not exist.')
+                message = f'Manifest item {item["id"]} = {item["href"]} does not exist.'
+                raise InvalidEpub(self.original_path, message)
 
     # LOADING AND SAVING
     ############################################################################
