@@ -1004,6 +1004,15 @@ class Epub:
                 return r
             return r.ol
 
+        # Official HTML headers only go up to 6.
+        if max_level is None:
+            max_level = 6
+
+        elif max_level < 1:
+            raise ValueError('max_level must be >= 1.')
+
+        header_pattern = re.compile(rf'^h[1-{max_level}]$')
+
         nav_id = self.get_nav()
         if nav_id:
             nav_filepath = self.get_filepath(nav_id)
@@ -1027,11 +1036,9 @@ class Epub:
             file_path = self.get_filepath(file_id)
             soup = self.read_file(file_id, soup=True)
 
-            for header in soup.find_all(re.compile(r'^h[1-6]$')):
+            for header in soup.find_all(header_pattern):
                 # 'hX' -> X
                 level = int(header.name[1])
-                if max_level is not None and level > max_level:
-                    continue
 
                 header['id'] = f'toc_{toc_line_index}'
                 toc_line_index += 1
