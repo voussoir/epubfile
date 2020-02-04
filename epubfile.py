@@ -1027,7 +1027,6 @@ class Epub:
         toc = new_list(root=True)
         current_level = None
         current_list = toc.ol
-        toc_line_index = 1
 
         spine = self.get_spine_order(linear_only=linear_only)
         spine = [s for s in spine if s != nav_id]
@@ -1036,12 +1035,12 @@ class Epub:
             file_path = self.get_filepath(file_id)
             soup = self.read_file(file_id, soup=True)
 
-            for header in soup.find_all(header_pattern):
+            headers = soup.find_all(header_pattern)
+            for (toc_line_index, header) in enumerate(headers, start=1):
                 # 'hX' -> X
                 level = int(header.name[1])
 
                 header['id'] = f'toc_{toc_line_index}'
-                toc_line_index += 1
 
                 toc_line = toc.new_tag('li')
                 toc_line['text'] = header.text
