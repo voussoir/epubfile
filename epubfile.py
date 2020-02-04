@@ -1019,7 +1019,6 @@ class Epub:
         current_level = None
         current_list = toc.ol
         toc_line_index = 1
-        HEADER_TAGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']
 
         spine = self.get_spine_order(linear_only=linear_only)
         spine = [s for s in spine if s != nav_id]
@@ -1028,9 +1027,7 @@ class Epub:
             file_path = self.get_filepath(file_id)
             soup = self.read_file(file_id, soup=True)
 
-            for header in soup.descendants:
-                if header.name not in HEADER_TAGS:
-                    continue
+            for header in soup.find_all(re.compile(r'^h[1-6]$')):
                 # 'hX' -> X
                 level = int(header.name[1])
                 if max_level is not None and level > max_level:
