@@ -1062,6 +1062,10 @@ class Epub:
                     current_level -= 1
                     # Because the sub-<ol> are actually a child of the last
                     # <li> of the previous <ol>, we must .parent twice.
+                    # The second .parent is conditional because if the current
+                    # list is toc.ol, then parent is a Soup document object, and
+                    # parenting again would be a mistake. We'll recover from
+                    # this in just a moment.
                     current_list = current_list.parent
                     if current_list.name == 'li':
                         current_list = current_list.parent
