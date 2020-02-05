@@ -1029,8 +1029,9 @@ class Epub:
         # have different structural requirements. The attributes that I'm using
         # in this initial toc object DO NOT represent any part of the epub format.
         toc = new_list(root=True)
-        current_level = None
+
         current_list = toc.ol
+        current_list['level'] = None
 
         spine = self.get_spine_order(linear_only=linear_only)
         spine = [s for s in spine if s != nav_id]
@@ -1055,11 +1056,10 @@ class Epub:
                     relative = file_path.relative_to(ncx_filepath.parent, simple=True)
                     toc_line['ncx_anchor'] = f'{relative}#{header["id"]}'
 
-                if current_level is None:
-                    current_level = level
+                if current_list['level'] is None:
+                    current_list['level'] = level
 
-                while level < current_level:
-                    current_level -= 1
+                while level < current_list['level']:
                     # Because the sub-<ol> are actually a child of the last
                     # <li> of the previous <ol>, we must .parent twice.
                     # The second .parent is conditional because if the current
@@ -1079,11 +1079,10 @@ class Epub:
                     # In the resulting toc, that initial h4 would have the same
                     # toc depth as the later h1 since it never had parents.
                     if current_list == toc:
-                        current_level = level
+                        current_list['level'] = level
                         current_list = toc.ol
 
-                if level > current_level:
-                    current_level = level
+                if level > current_list['level']:
                     # In order to properly render nested <ol>, you're supposed
                     # to make the new <ol> a child of the last <li> of the
                     # previous <ol>. NOT a child of the prev <ol> directly.
@@ -1091,6 +1090,7 @@ class Epub:
                     # first <li> this condition can never occur, and new <ol>s
                     # always receive a child right after being created.
                     _l = new_list()
+                    _l['level'] = level
                     final_li = list(current_list.children)[-1]
                     final_li.append(_l)
                     current_list = _l
@@ -1099,6 +1099,9 @@ class Epub:
 
             # We have to save the id="toc_X" that we gave to all the headers.
             self.write_file(file_id, soup)
+
+        for ol in toc.find_all('ol'):
+            del ol['level']
 
         if nav_id:
             self._set_nav_toc(nav_id, copy.copy(toc))
