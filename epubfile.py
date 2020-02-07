@@ -1203,6 +1203,8 @@ The simple python .epub scripting tool.
 
 {covercomesfirst}
 
+{exec}
+
 {generate_toc}
 
 {holdit}
@@ -1271,7 +1273,7 @@ merge:
     > epubfile.py merge book1.epub book2.epub --output final.epub <flags>
 
     flags:
-    --demote_headers
+    --demote_headers:
         All h1 in the book will be demoted to h2, and so forth. So that the
         headerfiles are the only h1s and the table of contents will generate
         with a good hierarchy.
