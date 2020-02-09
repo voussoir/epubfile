@@ -1539,7 +1539,7 @@ p_normalize.set_defaults(func=normalize_argparse)
 @betterhelp.subparser_betterhelp(parser, main_docstring=DOCSTRING, sub_docstrings=SUB_DOCSTRINGS)
 def main(argv):
     args = parser.parse_args(argv)
-    args.func(args)
+    return args.func(args)
 
 if __name__ == '__main__':
     raise SystemExit(main(sys.argv[1:]))
