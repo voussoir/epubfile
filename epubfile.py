@@ -1415,9 +1415,8 @@ def merge(
     index_length = len(str(len(input_filepaths)))
     rand_prefix = random_string(3, string.digits)
 
-    for (index, input_filepath) in enumerate(input_filepaths):
-        # Number books from 1 for human sanity.
-        index += 1
+    # Number books from 1 for human sanity.
+    for (index, input_filepath) in enumerate(input_filepaths, start=1):
         print(f'Merging {input_filepath.absolute_path}.')
         prefix = f'{rand_prefix}_{index:>0{index_length}}_{{}}'
         input_book = Epub.open(input_filepath)
