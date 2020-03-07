@@ -10,6 +10,7 @@ import zipfile
 import bs4
 import tinycss2
 
+from voussoirkit import getpermission
 from voussoirkit import pathclass
 
 HTML_LINK_PROPERTIES = {
@@ -1472,10 +1473,7 @@ def merge(
 
 def merge_argparse(args):
     if os.path.exists(args.output):
-        ok = args.autoyes
-        if not ok:
-            ok = input(f'Overwrite {args.output}? y/n\n>').lower() in ('y', 'yes')
-        if not ok:
+        if not (args.autoyes or getpermission.getpermission(f'Overwrite {args.output}?')):
             raise ValueError(f'{args.output} exists.')
 
     return merge(
