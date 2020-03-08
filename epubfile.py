@@ -908,6 +908,25 @@ class Epub:
         titles = [str(t.contents[0]) for t in titles if len(t.contents) == 1]
         return titles
 
+    @writes
+    def remove_metadata_of_type(self, tag_name):
+        for meta in self.opf.metadata.find_all({tag_name}):
+            if meta.get('id'):
+                for refines in self.opf.metadata.find_all('meta', {'refines': f'#{meta["id"]}'}):
+                    refines.extract()
+            meta.extract()
+
+    @writes
+    def set_languages(self, languages):
+        '''
+        A list like ['en', 'fr', 'ko'].
+        '''
+        self.remove_metadata_of_type('dc:language')
+        for language in languages:
+            element = f'<dc:language>{language}</dc:language>'
+            element = bs4.BeautifulSoup(element, 'html.parser')
+            self.opf.metadata.append(element)
+
     # UTILITIES
     ############################################################################
     @writes
