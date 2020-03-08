@@ -470,6 +470,10 @@ class Epub:
     ############################################################################
     @classmethod
     def new(cls):
+        '''
+        Create a new book. It will start as a temporary directory, so don't
+        forget to call `save` when you are done.
+        '''
         def writefile(filepath, content):
             os.makedirs(filepath.parent.absolute_path, exist_ok=True)
             # This line uses Python open instead of self._fopen because the epub
@@ -500,6 +504,9 @@ class Epub:
     # CONTAINER & OPF
     ############################################################################
     def get_opfs(self):
+        '''
+        Read the container.xml to find all available OPFs (aka rootfiles).
+        '''
         container = self.read_container_xml()
         rootfiles = container.find_all('rootfile')
         rootfiles = [x.get('full-path') for x in rootfiles]
@@ -595,6 +602,10 @@ class Epub:
 
     @writes
     def easy_add_file(self, filepath):
+        '''
+        Add a file from disk into the book. The manifest ID and href will be
+        automatically generated.
+        '''
         filepath = pathclass.Path(filepath)
         with self._fopen(filepath.absolute_path, 'rb') as handle:
             self.add_file(
@@ -615,6 +626,10 @@ class Epub:
     def get_filepath(self, id):
         href = self.opf.manifest.find('item', {'id': id})['href']
         filepath = self.opf_filepath.parent.join(href)
+        # TODO: In the case of a read-only zipped epub, this condition will
+        # definitely fail and we won't be unquoting names that need it.
+        # Double-check the consequences of this and make a patch for file
+        # exists inside zip check if needed.
         if not filepath.exists:
             href = urllib.parse.unquote(href)
             filepath = self.opf_filepath.parent.join(href)
@@ -1341,7 +1356,7 @@ The simple python .epub scripting tool.
 
 TO SEE DETAILS ON EACH COMMAND, RUN
 > epubfile.py <command>
-'''.lstrip()
+'''
 
 SUB_DOCSTRINGS = dict(
 addfile='''
@@ -1368,14 +1383,14 @@ covercomesfirst:
 
 exec='''
 exec:
-    Execute your own Python code against the book.
+    Execute a snippet of Python code against the book.
 
     > epubfile.py exec book.epub --command "book._____()"
 '''.strip(),
 
 generate_toc='''
 generate_toc:
-    Regenerate the toc.ncx and nav.xhtml based on headers in the files.
+    Regenerate the toc.ncx and nav.xhtml based on html <hX> headers in the text.
 
     > epubfile.py generate_toc book.epub <flags>
 
@@ -1387,7 +1402,8 @@ generate_toc:
 
 holdit='''
 holdit:
-    Extract the book and leave it open for manual editing, then save.
+    Extract the book so that you can manually edit the files on disk, then save
+    the changes back into the original file.
 
     > epubfile.py holdit book.epub
 '''.strip(),
