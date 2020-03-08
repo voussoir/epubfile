@@ -3,7 +3,7 @@ epubfile
 
 ```Python
 import epubfile
-book = epubfile.Epub.open('mybook.epub')
+book = epubfile.Epub('mybook.epub')
 
 for text_id in book.get_texts():
     soup = book.read_file(text_id, soup=True)
@@ -15,7 +15,8 @@ for image_id in book.get_images():
     ...
     book.write_file(image_id, data)
 
-# Note that this does not reverse the table of contents.
+# Note that this only reverses the spine in the opf file, it does not reverse
+# the table of contents, since the toc is stored as nav.xhtml and toc.ncx.
 book.set_spine_order(reversed(book.get_spine_order()))
 
 cover_id = book.get_cover_image()
@@ -33,7 +34,7 @@ epubfile provides simple editing of epub books. epubfile attempts to keep file m
 
 # Command line utilities
 
-This library was born out of my own needs. So there are a couple of builtin utilities.
+This library was born out of my own needs. So there are a couple of builtin utilities. You can run `epubfile.py` with no arguments to see a summary of all builtin utilities. Here are some examples:
 
 ```
 addfile:
