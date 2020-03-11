@@ -1654,49 +1654,52 @@ def normalize_argparse(args):
         book.move_nav_to_end()
         book.save(epub)
 
-parser = argparse.ArgumentParser(description=__doc__)
-subparsers = parser.add_subparsers()
-
-p_addfile = subparsers.add_parser('addfile')
-p_addfile.add_argument('epub')
-p_addfile.add_argument('files', nargs='+', default=[])
-p_addfile.set_defaults(func=addfile_argparse)
-
-p_covercomesfirst = subparsers.add_parser('covercomesfirst')
-p_covercomesfirst.add_argument('epubs', nargs='+', default=[])
-p_covercomesfirst.set_defaults(func=covercomesfirst_argparse)
-
-p_exec = subparsers.add_parser('exec')
-p_exec.add_argument('epubs', nargs='+', default=[])
-p_exec.add_argument('--command', dest='command', default=None, required=True)
-p_exec.set_defaults(func=exec_argparse)
-
-p_generate_toc = subparsers.add_parser('generate_toc')
-p_generate_toc.add_argument('epubs', nargs='+', default=[])
-p_generate_toc.add_argument('--max_level', dest='max_level', default=None)
-p_generate_toc.set_defaults(func=generate_toc_argparse)
-
-p_holdit = subparsers.add_parser('holdit')
-p_holdit.add_argument('epubs', nargs='+', default=[])
-p_holdit.set_defaults(func=holdit_argparse)
-
-p_merge = subparsers.add_parser('merge')
-p_merge.add_argument('epubs', nargs='+', default=[])
-p_merge.add_argument('--output', dest='output', default=None, required=True)
-p_merge.add_argument('--headerfile', dest='headerfile', action='store_true')
-p_merge.add_argument('--demote_headers', dest='demote_headers', action='store_true')
-p_merge.add_argument('--number_headerfile', dest='number_headerfile', action='store_true')
-p_merge.add_argument('-y', '--autoyes', dest='autoyes', action='store_true')
-p_merge.set_defaults(func=merge_argparse)
-
-p_normalize = subparsers.add_parser('normalize')
-p_normalize.add_argument('epubs', nargs='+', default=[])
-p_normalize.set_defaults(func=normalize_argparse)
-
-@betterhelp.subparser_betterhelp(parser, main_docstring=DOCSTRING, sub_docstrings=SUB_DOCSTRINGS)
 def main(argv):
-    args = parser.parse_args(argv)
-    return args.func(args)
+    parser = argparse.ArgumentParser(description=__doc__)
+    subparsers = parser.add_subparsers()
+
+    p_addfile = subparsers.add_parser('addfile')
+    p_addfile.add_argument('epub')
+    p_addfile.add_argument('files', nargs='+', default=[])
+    p_addfile.set_defaults(func=addfile_argparse)
+
+    p_covercomesfirst = subparsers.add_parser('covercomesfirst')
+    p_covercomesfirst.add_argument('epubs', nargs='+', default=[])
+    p_covercomesfirst.set_defaults(func=covercomesfirst_argparse)
+
+    p_exec = subparsers.add_parser('exec')
+    p_exec.add_argument('epubs', nargs='+', default=[])
+    p_exec.add_argument('--command', dest='command', default=None, required=True)
+    p_exec.set_defaults(func=exec_argparse)
+
+    p_generate_toc = subparsers.add_parser('generate_toc')
+    p_generate_toc.add_argument('epubs', nargs='+', default=[])
+    p_generate_toc.add_argument('--max_level', dest='max_level', default=None)
+    p_generate_toc.set_defaults(func=generate_toc_argparse)
+
+    p_holdit = subparsers.add_parser('holdit')
+    p_holdit.add_argument('epubs', nargs='+', default=[])
+    p_holdit.set_defaults(func=holdit_argparse)
+
+    p_merge = subparsers.add_parser('merge')
+    p_merge.add_argument('epubs', nargs='+', default=[])
+    p_merge.add_argument('--output', dest='output', default=None, required=True)
+    p_merge.add_argument('--headerfile', dest='headerfile', action='store_true')
+    p_merge.add_argument('--demote_headers', dest='demote_headers', action='store_true')
+    p_merge.add_argument('--number_headerfile', dest='number_headerfile', action='store_true')
+    p_merge.add_argument('-y', '--autoyes', dest='autoyes', action='store_true')
+    p_merge.set_defaults(func=merge_argparse)
+
+    p_normalize = subparsers.add_parser('normalize')
+    p_normalize.add_argument('epubs', nargs='+', default=[])
+    p_normalize.set_defaults(func=normalize_argparse)
+
+    return betterhelp.subparser_main(
+        argv,
+        parser,
+        main_docstring=DOCSTRING,
+        sub_docstrings=SUB_DOCSTRINGS,
+    )
 
 if __name__ == '__main__':
     raise SystemExit(main(sys.argv[1:]))
