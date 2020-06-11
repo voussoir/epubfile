@@ -898,6 +898,11 @@ class Epub:
         creators = [str(c.contents[0]) for c in creators if len(c.contents) == 1]
         return creators
 
+    def get_dates(self):
+        dates = self.opf.metadata.find_all({'dc:date'})
+        dates = [str(t.contents[0]) for t in dates if len(t.contents) == 1]
+        return dates
+
     def get_languages(self):
         languages = self.opf.metadata.find_all({'dc:language'})
         languages = [str(l.contents[0]) for l in languages if len(l.contents) == 1]
@@ -1603,8 +1608,17 @@ def merge(
                 title = input_book.get_titles()[0]
             except IndexError:
                 title = input_filepath.replace_extension('').basename
+
+            try:
+                year = input_book.get_dates()[0]
+            except IndexError:
+                pass
+            else:
+                title = f'{title} ({year})'
+
             if number_headerfile:
                 title = f'{index:>0{index_length}}. {title}'
+
             content += f'<h1>{html.escape(title)}</h1>'
 
             try:
