@@ -366,7 +366,7 @@ class Epub:
 
     def __init_from_dir(self, directory):
         self.is_zip = False
-        self.root_directory = pathclass.Path(directory)
+        self.root_directory = pathclass.Path(directory, force_sep='/')
 
     def __init_from_file_read_only(self, epub_path):
         # It may appear that is_zip is a synonym for read_only, but don't forget
@@ -374,7 +374,7 @@ class Epub:
         # readonly dirs don't need a special init, all they have to do is
         # forbid writes.
         self.is_zip = True
-        self.root_directory = pathclass.Path(epub_path)
+        self.root_directory = pathclass.Path(epub_path, force_sep='/')
         self.zip = zipfile.ZipFile(self.root_directory.absolute_path)
 
     def __init_from_file(self, epub_path):
