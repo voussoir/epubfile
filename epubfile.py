@@ -1211,12 +1211,31 @@ class Epub:
 
                 toc_line = toc.new_tag('li')
                 toc_line['text'] = header.text
+
+                # In Lithium, the TOC drawer only remembers your position if
+                # the page that you're reading corresponds to a TOC entry
+                # exactly. Which is to say, if you left off on page5.html,
+                # there needs to be a TOC line with href="page5.html" or else
+                # the TOC drawer will be in the default position at the top of
+                # the list and not highlight the current chapter. Any #anchor
+                # in the href will break this feature. So, this code will make
+                # the first <hX> on a given page not have an #anchor. If you
+                # have a significant amount of text on the page before this
+                # header, then this will look bad. But for the majority of
+                # cases I expect the first header on the page will be at the
+                # very top, or near enough that the Lithium fix is still
+                # worthwhile.
+                if toc_line_index == 1:
+                    hash_anchor = ''
+                else:
+                    hash_anchor = f'#{header["id"]}'
+
                 if nav_id:
                     relative = file_path.relative_to(nav_filepath.parent, simple=True)
-                    toc_line['nav_anchor'] = f'{relative}#{header["id"]}'
+                    toc_line['nav_anchor'] = f'{relative}{hash_anchor}'
                 if ncx_id:
                     relative = file_path.relative_to(ncx_filepath.parent, simple=True)
-                    toc_line['ncx_anchor'] = f'{relative}#{header["id"]}'
+                    toc_line['ncx_anchor'] = f'{relative}{hash_anchor}'
 
                 if current_list['level'] is None:
                     current_list['level'] = level
