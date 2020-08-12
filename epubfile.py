@@ -1707,7 +1707,7 @@ def main(argv):
 
     p_generate_toc = subparsers.add_parser('generate_toc')
     p_generate_toc.add_argument('epubs', nargs='+', default=[])
-    p_generate_toc.add_argument('--max_level', dest='max_level', default=None)
+    p_generate_toc.add_argument('--max_level', '--max-level', dest='max_level', default=None)
     p_generate_toc.set_defaults(func=generate_toc_argparse)
 
     p_holdit = subparsers.add_parser('holdit')
@@ -1718,8 +1718,8 @@ def main(argv):
     p_merge.add_argument('epubs', nargs='+', default=[])
     p_merge.add_argument('--output', dest='output', default=None, required=True)
     p_merge.add_argument('--headerfile', dest='headerfile', action='store_true')
-    p_merge.add_argument('--demote_headers', dest='demote_headers', action='store_true')
-    p_merge.add_argument('--number_headerfile', dest='number_headerfile', action='store_true')
+    p_merge.add_argument('--demote_headers', '--demote-headers', dest='demote_headers', action='store_true')
+    p_merge.add_argument('--number_headerfile', '--number-headerfile', dest='number_headerfile', action='store_true')
     p_merge.add_argument('-y', '--autoyes', dest='autoyes', action='store_true')
     p_merge.set_defaults(func=merge_argparse)
 
