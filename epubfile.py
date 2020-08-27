@@ -608,7 +608,7 @@ class Epub:
         '''
         filepath = pathclass.Path(filepath)
         with self._fopen(filepath.absolute_path, 'rb') as handle:
-            self.add_file(
+            return self.add_file(
                 id=filepath.basename,
                 basename=filepath.basename,
                 content=handle.read(),
