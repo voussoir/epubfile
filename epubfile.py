@@ -726,7 +726,7 @@ class Epub:
 
     def get_fonts(self, *, soup=False):
         return self.get_manifest_items(
-            filter='[media-type^="application/font"],[media-type^="font/"]',
+            filter='[media-type*="font"],[media-type*="opentype"]',
             soup=soup,
         )
 
