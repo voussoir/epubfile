@@ -1402,6 +1402,8 @@ The simple python .epub scripting tool.
 
 {normalize}
 
+{setfont}
+
 TO SEE DETAILS ON EACH COMMAND, RUN
 > epubfile.py <command>
 '''
@@ -1487,6 +1489,16 @@ normalize:
     subdirectories by type: Text, Images, Styles, etc.
 
     > epubfile.py normalize book.epub
+'''.strip(),
+
+setfont='''
+setfont:
+    Set the font for every page in the whole book.
+
+    A stylesheet called epubfile_setfont.css will be created that sets
+    * { font-family: ... !important } with a font file of your choice.
+
+    > epubfile.py setfont book.epub font.ttf
 '''.strip(),
 )
 
@@ -1692,6 +1704,74 @@ def normalize_argparse(args):
         book.move_nav_to_end()
         book.save(epub)
 
+def setfont_argparse(args):
+    book = Epub(args.epub)
+
+    css_id = 'epubfile_setfont'
+    css_basename = 'epubfile_setfont.css'
+
+    try:
+        book.assert_id_not_exists(css_id)
+    except IDExists:
+        if not getpermission.getpermission(f'Overwrite {css_id}?'):
+            return
+        book.delete_file(css_id)
+
+    font = pathclass.Path(args.font)
+
+    for existing_font in book.get_fonts():
+        font_path = book.get_filepath(existing_font)
+        if font_path.basename == font.basename:
+            font_id = existing_font
+            break
+    else:
+        font_id = book.easy_add_file(font)
+        font_path = book.get_filepath(font_id)
+
+    # The font_path may have come from an existing font in the book, so we have
+    # no guarantees about its path layout. The css file, however, is definitely
+    # going to be inside OEBPS/Styles since we're the ones creating it.
+    # So, we should be getting the correct number of .. in the relative path.
+    family = font_path.basename
+    relative = font_path.relative_to(book.opf_filepath.parent.with_child('Styles'))
+
+    css = f'''
+    @font-face {{
+    font-family: '{family}';
+    font-weight: normal;
+    font-style: normal;
+    src: url("{relative}");
+    }}
+
+    * {{
+        font-family: '{family}' !important;
+    }}
+    '''
+
+    book.add_file(
+        id=css_id,
+        basename=css_basename,
+        content=css,
+    )
+    css_path = book.get_filepath(css_id)
+
+    for text_id in book.get_texts():
+        text_path = book.get_filepath(text_id)
+        relative = css_path.relative_to(text_path)
+        soup = book.read_file(text_id, soup=True)
+        head = soup.head
+        if head.find('link', {'id': css_id}):
+            continue
+        link = soup.new_tag('link')
+        link['id'] = css_id
+        link['href'] = css_path.relative_to(text_path.parent)
+        link['rel'] = 'stylesheet'
+        link['type'] = 'text/css'
+        head.append(link)
+        book.write_file(text_id, soup)
+
+    book.save(args.epub)
+
 def main(argv):
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers()
@@ -1731,6 +1811,11 @@ def main(argv):
     p_normalize = subparsers.add_parser('normalize')
     p_normalize.add_argument('epubs', nargs='+', default=[])
     p_normalize.set_defaults(func=normalize_argparse)
+
+    p_setfont = subparsers.add_parser('setfont')
+    p_setfont.add_argument('epub')
+    p_setfont.add_argument('font')
+    p_setfont.set_defaults(func=setfont_argparse)
 
     return betterhelp.subparser_main(
         argv,
