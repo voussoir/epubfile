@@ -446,8 +446,11 @@ class Epub:
             raise FileExists(existing)
 
     def assert_id_not_exists(self, id):
-        if self.opf.manifest.find('item', {'id': id}):
+        try:
+            self.get_manifest_item(id)
             raise IDExists(id)
+        except NotInManifest:
+            pass
 
     # VALIDATION
     ############################################################################
@@ -616,7 +619,7 @@ class Epub:
 
     @writes
     def delete_file(self, id):
-        manifest_item = self.opf.manifest.find('item', {'id': id})
+        manifest_item = self.get_manifest_item(id)
         filepath = self.get_filepath(id)
 
         manifest_item.extract()
@@ -626,7 +629,7 @@ class Epub:
         os.remove(filepath.absolute_path)
 
     def get_filepath(self, id):
-        href = self.opf.manifest.find('item', {'id': id})['href']
+        href = self.get_manifest_item(id)['href']
         filepath = self.opf_filepath.parent.join(href)
         # TODO: In the case of a read-only zipped epub, this condition will
         # definitely fail and we won't be unquoting names that need it.
@@ -645,7 +648,7 @@ class Epub:
             raise ReadOnly(self.open_file.__qualname__)
 
         filepath = self.get_filepath(id)
-        mime = self.opf.manifest.find('item', {'id': id})['media-type']
+        mime = self.get_manifest_item(id)['media-type']
         is_text = (
             mime in ('application/xhtml+xml', 'application/x-dtbncx+xml') or
             mime.startswith('text/')
