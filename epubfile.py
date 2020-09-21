@@ -483,7 +483,7 @@ class Epub:
             # hasn't been instantiated yet! At this time, creating a book with
             # Epub.new always creates it as a directory. We do not support
             # creating a book directly into a fresh zip file.
-            with open(filepath.absolute_path, 'w', encoding='utf-8') as handle:
+            with filepath.open('w', encoding='utf-8') as handle:
                 handle.write(content)
 
         uid = uuid.uuid4().urn
@@ -1521,7 +1521,7 @@ def addfile_argparse(args):
                 base = file.replace_extension('').basename
                 id = f'{base}_{rand_suffix}'
                 basename = f'{base}_{rand_suffix}{file.extension.with_dot}'
-                content = open(file.absolute_path, 'rb').read()
+                content = file.open('rb').read()
                 book.add_file(id, basename, content)
 
     book.move_nav_to_end()
