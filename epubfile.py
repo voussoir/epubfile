@@ -478,7 +478,7 @@ class Epub:
         forget to call `save` when you are done.
         '''
         def writefile(filepath, content):
-            os.makedirs(filepath.parent.absolute_path, exist_ok=True)
+            filepath.parent.makedirs(exist_ok=True)
             # This line uses Python open instead of self._fopen because the epub
             # hasn't been instantiated yet! At this time, creating a book with
             # Epub.new always creates it as a directory. We do not support
@@ -572,7 +572,7 @@ class Epub:
         mime = get_mimetype_for_basename(basename)
         directory = get_directory_for_mimetype(mime)
         directory = self.opf_filepath.parent.with_child(directory)
-        os.makedirs(directory.absolute_path, exist_ok=True)
+        directory.makedirs(exist_ok=True)
         filepath = directory.with_child(basename)
 
         self.assert_file_not_exists(filepath)
@@ -1329,7 +1329,7 @@ class Epub:
 
         if self.opf_filepath.parent == self.root_directory:
             oebps = self.root_directory.with_child('OEBPS')
-            os.makedirs(oebps.absolute_path, exist_ok=True)
+            oebps.makedirs(exist_ok=True)
             self.write_opf()
             new_opf_path = oebps.with_child(self.opf_filepath.basename)
             os.rename(self.opf_filepath.absolute_path, new_opf_path.absolute_path)
@@ -1350,7 +1350,7 @@ class Epub:
                 # On Linux it is inert.
                 os.rename(directory.absolute_path, directory.absolute_path)
             else:
-                os.makedirs(directory.absolute_path)
+                directory.makedirs()
 
             new_filepath = directory.with_child(old_filepath.basename)
             if new_filepath.absolute_path != old_filepath.absolute_path:
