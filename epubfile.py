@@ -1571,7 +1571,7 @@ def covercomesfirst_argparse(args):
         print(epub)
         book = Epub(epub)
         covercomesfirst(book)
-        book.save(args.epub)
+        book.save(epub)
 
 def exec_argparse(args):
     epubs = [epub for pattern in args.epubs for epub in winglob.glob(pattern)]
