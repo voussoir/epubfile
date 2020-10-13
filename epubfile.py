@@ -1405,7 +1405,7 @@ The simple python .epub scripting tool.
 {setfont}
 
 TO SEE DETAILS ON EACH COMMAND, RUN
-> epubfile.py <command>
+> epubfile.py <command> --help
 '''
 
 SUB_DOCSTRINGS = dict(
