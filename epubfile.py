@@ -1481,6 +1481,17 @@ merge:
         Overwrite the output file without prompting.
 '''.strip(),
 
+new='''
+new:
+    Create a new, blank epub file.
+
+    > epubfile.py new book.epub <flags>
+
+    flags:
+    -y | --autoyes:
+        Overwrite the file without prompting.
+'''.strip(),
+
 normalize='''
 normalize:
     Rename files and directories in the book to match a common structure.
@@ -1694,6 +1705,13 @@ def merge_argparse(args):
         number_headerfile=args.number_headerfile,
     )
 
+def new_book_argparse(args):
+    if os.path.exists(args.epub):
+        if not (args.autoyes or getpermission.getpermission(f'Overwrite {args.epub}?')):
+            raise ValueError(f'{args.epub} exists.')
+    book = Epub.new()
+    book.save(args.epub)
+
 def normalize_argparse(args):
     epubs = [epub for pattern in args.epubs for epub in winglob.glob(pattern)]
     for epub in epubs:
@@ -1807,6 +1825,11 @@ def main(argv):
     p_merge.add_argument('--number_headerfile', '--number-headerfile', dest='number_headerfile', action='store_true')
     p_merge.add_argument('-y', '--autoyes', dest='autoyes', action='store_true')
     p_merge.set_defaults(func=merge_argparse)
+
+    p_new = subparsers.add_parser('new')
+    p_new.add_argument('epub')
+    p_new.add_argument('-y', '--autoyes', dest='autoyes', action='store_true')
+    p_new.set_defaults(func=new_book_argparse)
 
     p_normalize = subparsers.add_parser('normalize')
     p_normalize.add_argument('epubs', nargs='+', default=[])
