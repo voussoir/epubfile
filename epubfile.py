@@ -12,7 +12,7 @@ import zipfile
 import bs4
 import tinycss2
 
-from voussoirkit import getpermission
+from voussoirkit import interactive
 from voussoirkit import pathclass
 
 HTML_LINK_PROPERTIES = {
@@ -1694,7 +1694,7 @@ def merge(
 
 def merge_argparse(args):
     if os.path.exists(args.output):
-        if not (args.autoyes or getpermission.getpermission(f'Overwrite {args.output}?')):
+        if not (args.autoyes or interactive.getpermission(f'Overwrite {args.output}?')):
             raise ValueError(f'{args.output} exists.')
 
     return merge(
@@ -1707,7 +1707,7 @@ def merge_argparse(args):
 
 def new_book_argparse(args):
     if os.path.exists(args.epub):
-        if not (args.autoyes or getpermission.getpermission(f'Overwrite {args.epub}?')):
+        if not (args.autoyes or interactive.getpermission(f'Overwrite {args.epub}?')):
             raise ValueError(f'{args.epub} exists.')
     book = Epub.new()
     book.save(args.epub)
@@ -1731,7 +1731,7 @@ def setfont_argparse(args):
     try:
         book.assert_id_not_exists(css_id)
     except IDExists:
-        if not getpermission.getpermission(f'Overwrite {css_id}?'):
+        if not interactive.getpermission(f'Overwrite {css_id}?'):
             return
         book.delete_file(css_id)
 
