@@ -100,3 +100,5 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 https://github.com/voussoir/epubfile
 
 https://gitlab.com/voussoir/epubfile
+
+https://codeberg.org/voussoir/epubfile
