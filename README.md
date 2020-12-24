@@ -28,11 +28,11 @@ book.save('modifiedbook.epub')
 
 epubfile provides simple editing of epub books. epubfile attempts to keep file modifications to a minimum. It does not add, remove, or rearrange files unless you ask it to, and does not inject additional metadata. As such, it works for both epub2 and epub3 assuming you stick to supported operations for your book version.
 
-# Install
+## Install
 
 `pip install epubfile`
 
-# Command line utilities
+## Command line utilities
 
 This library was born out of my own needs. So there are a couple of builtin utilities. You can run `epubfile.py` with no arguments to see a summary of all builtin utilities. Here are some examples:
 
@@ -50,15 +50,15 @@ normalize:
     Rename files and directories in the book to match a common structure.
 ```
 
-# Spec compliance
+## Spec compliance
 
 epubfile does not rigorously enforce the epub spec and you can create noncompliant books with it. Basic errors are checked, and I am open to issues and comments regarding ways to improve spec-compliance without adding significant size or complexity to the library. I am prioritizing simplicity and ease of use over perfection.
 
-# Pairs well with...
+## Pairs well with...
 
 For advanced inter-file operations and better validation, I suggest using this library in conjunction with a good editor like [Sigil](https://github.com/Sigil-Ebook/Sigil). I wrote this library because although Sigil plugins are great for processing a single book, it is difficult to use Sigil to process multiple books, read book data for use in other programs, or do other inter-book operations.
 
-# What not to expect
+## What not to expect
 
 I do not intend to implement an object model for book metadata, beyond perhaps some basic getters and setters. You have full control over the `Epub.opf` BeautifulSoup object so you can edit the metadata however you want.
 
@@ -96,6 +96,8 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
+
+## Mirrors
 
 https://github.com/voussoir/epubfile
 
