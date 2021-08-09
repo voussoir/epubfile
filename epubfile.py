@@ -1516,7 +1516,7 @@ setfont:
 DOCSTRING = betterhelp.add_previews(DOCSTRING, SUB_DOCSTRINGS)
 
 def random_string(length, characters=string.ascii_lowercase):
-    return ''.join(random.choice(characters) for x in range(length))
+    return ''.join(random.choices(characters, k=length))
 
 def addfile_argparse(args):
     book = Epub(args.epub)
