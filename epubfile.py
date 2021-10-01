@@ -1522,9 +1522,8 @@ def addfile_argparse(args):
     book = Epub(args.epub)
 
     for pattern in args.files:
-        for file in winglob.glob(pattern):
-            print(f'Adding file {file}.')
-            file = pathclass.Path(file)
+        for file in pathclass.glob(pattern, files=True):
+            print(f'Adding file {file.absolute_path}.')
             try:
                 book.easy_add_file(file)
             except (IDExists, FileExists) as exc:
@@ -1624,7 +1623,7 @@ def merge(
     ):
     book = Epub.new()
 
-    input_filepaths = [pathclass.Path(p) for pattern in input_filepaths for p in winglob.glob(pattern)]
+    input_filepaths = list(pathclass.glob_many(input_filepaths))
     index_length = len(str(len(input_filepaths)))
     rand_prefix = random_string(3, string.digits)
 
