@@ -1386,7 +1386,9 @@ from voussoirkit import winglob
 
 DOCSTRING = '''
 Epubfile
-The simple python .epub scripting tool.
+========
+
+A simple python .epub scripting tool.
 
 {addfile}
 
@@ -1522,7 +1524,7 @@ def addfile_argparse(args):
     book = Epub(args.epub)
 
     for pattern in args.files:
-        for file in pathclass.glob(pattern, files=True):
+        for file in pathclass.glob_files(pattern):
             print(f'Adding file {file.absolute_path}.')
             try:
                 book.easy_add_file(file)
