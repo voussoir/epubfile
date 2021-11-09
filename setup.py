@@ -3,7 +3,7 @@ import setuptools
 setuptools.setup(
     name='epubfile',
     py_modules=['epubfile'],
-    version='0.0.7',
+    version='0.0.8',
     author='voussoir',
     author_email='pypi@voussoir.net',
     description='simple epub file reading and writing',
