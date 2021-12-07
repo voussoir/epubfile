@@ -50,6 +50,8 @@ normalize:
     Rename files and directories in the book to match a common structure.
 ```
 
+To see the rest, try `epubfile --help`.
+
 ## Spec compliance
 
 epubfile does not rigorously enforce the epub spec and you can create noncompliant books with it. Basic errors are checked, and I am open to issues and comments regarding ways to improve spec-compliance without adding significant size or complexity to the library. I am prioritizing simplicity and ease of use over perfection.

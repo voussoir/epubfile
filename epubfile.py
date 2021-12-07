@@ -14,6 +14,10 @@ import tinycss2
 
 from voussoirkit import interactive
 from voussoirkit import pathclass
+from voussoirkit import pipeable
+from voussoirkit import vlogging
+
+log = vlogging.get_logger(__name__, 'epubfile')
 
 HTML_LINK_PROPERTIES = {
     'a': ['href'],
@@ -70,10 +74,6 @@ OPF_TEMPLATE = '''
 <package version="3.0" unique-identifier="BookId" xmlns="http://www.idpf.org/2007/opf">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
     <dc:identifier id="BookId">{uuid}</dc:identifier>
-    <dc:creator id="cre">author</dc:creator>
-    <meta scheme="marc:relators" refines="#cre" property="role">aut</meta>
-    <dc:title>title</dc:title>
-    <dc:language>und</dc:language>
   </metadata>
   <manifest>
     <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
@@ -91,9 +91,6 @@ NCX_TEMPLATE = '''
   <head>
     <meta name="dtb:uid" content="{uuid}" />
   </head>
-<docTitle>
-   <text>{title}</text>
-</docTitle>
 <navMap>
 {navpoints}
 </navMap>
@@ -129,12 +126,12 @@ TEXT_TEMPLATE = '''
 </html>
 '''.strip()
 
-
 # EPUB COMPRESSION
 ################################################################################
 def compress_epub(directory, epub_filepath):
     directory = pathclass.Path(directory)
     epub_filepath = pathclass.Path(epub_filepath)
+    log.debug('Compressing %s to %s.', directory.absolute_path, epub_filepath.absolute_path)
 
     if epub_filepath in directory:
         raise ValueError('Epub inside its own directory')
@@ -142,14 +139,14 @@ def compress_epub(directory, epub_filepath):
     if epub_filepath.extension != 'epub':
         epub_filepath = epub_filepath.add_extension('epub')
 
-    with zipfile.ZipFile(epub_filepath.absolute_path, 'w') as z:
-        z.write(directory.with_child('mimetype').absolute_path, arcname='mimetype')
+    with zipfile.ZipFile(epub_filepath, 'w') as z:
+        z.write(directory.with_child('mimetype'), arcname='mimetype')
         for file in directory.walk():
             if file in [directory.with_child('mimetype'), directory.with_child('sigil.cfg')]:
                 continue
             z.write(
-                file.absolute_path,
-                arcname=file.relative_to(directory),
+                file,
+                arcname=file.relative_to(directory).replace('\\', '/'),
                 compress_type=zipfile.ZIP_DEFLATED,
             )
     return epub_filepath
@@ -157,9 +154,10 @@ def compress_epub(directory, epub_filepath):
 def extract_epub(epub_filepath, directory):
     epub_filepath = pathclass.Path(epub_filepath)
     directory = pathclass.Path(directory)
+    log.debug('Extracting %s to %s.', epub_filepath.absolute_path, directory.absolute_path)
 
-    with zipfile.ZipFile(epub_filepath.absolute_path, 'r') as z:
-        z.extractall(directory.absolute_path)
+    with zipfile.ZipFile(epub_filepath, 'r') as z:
+        z.extractall(directory)
 
 # XHTML TOOLS
 ################################################################################
@@ -295,6 +293,11 @@ def make_spine_item(id):
 # DECORATORS
 ################################################################################
 def writes(method):
+    '''
+    Indicates that the given method performs write operations to files inside
+    the book. The decorated method will raise ReadOnly if the book was opened
+    in read-only mode.
+    '''
     @functools.wraps(method)
     def wrapped_method(self, *args, **kwargs):
         if self.read_only:
@@ -335,7 +338,6 @@ class NotInSpine(EpubfileException):
 class ReadOnly(EpubfileException):
     error_message = 'Can\'t do {} in read-only mode.'
 
-
 class Epub:
     def __init__(self, epub_path, *, read_only=False):
         '''
@@ -366,7 +368,7 @@ class Epub:
 
     def __init_from_dir(self, directory):
         self.is_zip = False
-        self.root_directory = pathclass.Path(directory, force_sep='/')
+        self.root_directory = pathclass.Path(directory)
 
     def __init_from_file_read_only(self, epub_path):
         # It may appear that is_zip is a synonym for read_only, but don't forget
@@ -374,8 +376,8 @@ class Epub:
         # readonly dirs don't need a special init, all they have to do is
         # forbid writes.
         self.is_zip = True
-        self.root_directory = pathclass.Path(epub_path, force_sep='/')
-        self.zip = zipfile.ZipFile(self.root_directory.absolute_path)
+        self.root_directory = pathclass.Path(epub_path)
+        self.zip = zipfile.ZipFile(self.root_directory)
 
     def __init_from_file(self, epub_path):
         extract_to = tempfile.TemporaryDirectory(prefix='epubfile-')
@@ -411,9 +413,22 @@ class Epub:
         If the book was opened as a read-only zip, we can read files out of
         the zip.
         '''
-        p_path = self.root_directory.spawn(path)
-        if p_path in self.root_directory:
-            path = p_path.relative_to(self.root_directory, simple=True)
+        # When reading from a zip, root_directory is the zip file itself.
+        # So if the user is trying to read a filepath called
+        # D:\book.epub\dir1\file1.html, we need to convert it to the relative
+        # path dir1\file1.html
+        # But if they have already given us the relative path, we keep that.
+        normalized = path
+        if not isinstance(normalized, pathclass.Path):
+            normalized = pathclass.Path(normalized)
+
+        if normalized in self.root_directory:
+            # The given path was an absolute path including the epub.
+            path = normalized.relative_to(self.root_directory, simple=True)
+        else:
+            # The given path was either a relative path already inside the epub,
+            # or an absolute path somewhere totally wrong.
+            path = os.fspath(path)
 
         # Zip files always use forward slash internally, even on Windows.
         path = path.replace('\\', '/')
@@ -422,7 +437,7 @@ class Epub:
             return self.zip.open(path, 'r')
         if mode == 'r':
             return io.TextIOWrapper(self.zip.open(path, 'r'), encoding)
-        # At this time ZipFS is only used for read-only epubs anyway.
+        # At this time fopen_zip is only used for read-only epubs anyway.
         if mode == 'wb':
             return self.zip.open(path, 'w')
         if mode == 'w':
@@ -459,7 +474,7 @@ class Epub:
         # Ensure we have a mimetype file.
         mimetype_file = self.root_directory.with_child('mimetype')
         if not mimetype_file.exists:
-            with self._fopen(mimetype_file.absolute_path, 'w', encoding='utf-8') as handle:
+            with self._fopen(mimetype_file, 'w', encoding='utf-8') as handle:
                 handle.write(MIMETYPE_FILE_TEMPLATE)
 
         # Assert that all manifest items exist on disk.
@@ -493,7 +508,7 @@ class Epub:
         writefile(root.join('mimetype'), MIMETYPE_FILE_TEMPLATE)
         writefile(root.join('META-INF/container.xml'), CONTAINER_XML_TEMPLATE)
         writefile(root.join('OEBPS/content.opf'), OPF_TEMPLATE.format(uuid=uid))
-        writefile(root.join('OEBPS/toc.ncx'), NCX_TEMPLATE.format(uuid=uid, title='Unknown', navpoints=''))
+        writefile(root.join('OEBPS/toc.ncx'), NCX_TEMPLATE.format(uuid=uid, navpoints=''))
         writefile(root.join('OEBPS/Text/nav.xhtml'), NAV_XHTML_TEMPLATE.format(toc_contents=''))
 
         return cls(tempdir)
@@ -518,15 +533,15 @@ class Epub:
 
     def read_container_xml(self):
         container_xml_path = self.root_directory.join('META-INF/container.xml')
-        container = self._fopen(container_xml_path.absolute_path, 'r', encoding='utf-8')
+        container = self._fopen(container_xml_path, 'r', encoding='utf-8')
         # 'xml' and 'html.parser' seem about even here except that html.parser
         # doesn't self-close.
         container = bs4.BeautifulSoup(container, 'xml')
         return container
 
     def read_opf(self, rootfile):
-        rootfile = pathclass.Path(rootfile, force_sep='/')
-        rootfile_xml = self._fopen(rootfile.absolute_path, 'r', encoding='utf-8').read()
+        rootfile = pathclass.Path(rootfile)
+        rootfile_xml = self._fopen(rootfile, 'r', encoding='utf-8').read()
         # 'html.parser' preserves namespacing the best, but unfortunately it
         # botches the <meta> items because it wants them to be self-closing
         # and the string contents come out. We will fix in just a moment.
@@ -554,12 +569,12 @@ class Epub:
         if isinstance(container, bs4.BeautifulSoup):
             container = str(container)
         container_xml_path = self.root_directory.join('META-INF/container.xml')
-        container_xml = self._fopen(container_xml_path.absolute_path, 'w', encoding='utf-8')
+        container_xml = self._fopen(container_xml_path, 'w', encoding='utf-8')
         container_xml.write(container)
 
     @writes
     def write_opf(self):
-        with self._fopen(self.opf_filepath.absolute_path, 'w', encoding='utf-8') as rootfile:
+        with self._fopen(self.opf_filepath, 'w', encoding='utf-8') as rootfile:
             rootfile.write(str(self.opf))
 
     # FILE OPERATIONS
@@ -582,16 +597,16 @@ class Epub:
             content = fix_xhtml(content)
 
         if isinstance(content, str):
-            handle = self._fopen(filepath.absolute_path, 'w', encoding='utf-8')
+            handle = self._fopen(filepath, 'w', encoding='utf-8')
         elif isinstance(content, bytes):
-            handle = self._fopen(filepath.absolute_path, 'wb')
+            handle = self._fopen(filepath, 'wb')
         else:
             raise TypeError(f'content should be str or bytes, not {type(content)}.')
 
         with handle:
             handle.write(content)
 
-        href = filepath.relative_to(self.opf_filepath.parent, simple=True)
+        href = filepath.relative_to(self.opf_filepath.parent, simple=True).replace('\\', '/')
         href = urllib.parse.quote(href)
 
         manifest_item = make_manifest_item(id, href, mime)
@@ -610,7 +625,7 @@ class Epub:
         automatically generated.
         '''
         filepath = pathclass.Path(filepath)
-        with self._fopen(filepath.absolute_path, 'rb') as handle:
+        with self._fopen(filepath, 'rb') as handle:
             return self.add_file(
                 id=filepath.basename,
                 basename=filepath.basename,
@@ -626,7 +641,7 @@ class Epub:
         spine_item = self.opf.spine.find('itemref', {'idref': id})
         if spine_item:
             spine_item.extract()
-        os.remove(filepath.absolute_path)
+        os.remove(filepath)
 
     def get_filepath(self, id):
         href = self.get_manifest_item(id)['href']
@@ -655,9 +670,9 @@ class Epub:
         )
 
         if is_text:
-            handle = self._fopen(filepath.absolute_path, mode, encoding='utf-8')
+            handle = self._fopen(filepath, mode, encoding='utf-8')
         else:
-            handle = self._fopen(filepath.absolute_path, mode + 'b')
+            handle = self._fopen(filepath, mode + 'b')
 
         return handle
 
@@ -684,7 +699,7 @@ class Epub:
             if not new_filepath.extension:
                 new_filepath = new_filepath.add_extension(old_filepath.extension)
             self.assert_file_not_exists(new_filepath)
-            os.rename(old_filepath.absolute_path, new_filepath.absolute_path)
+            os.rename(old_filepath, new_filepath)
             rename_map[old_filepath] = new_filepath
 
         if fix_interlinking:
@@ -826,7 +841,7 @@ class Epub:
 
         current_meta = self.opf.metadata.find('meta', {'name': 'cover'})
         if current_meta:
-            current_meta[content] = id
+            current_meta['content'] = id
         else:
             meta = make_meta_item(attrs={'name': 'cover', 'content': id})
             self.opf.metadata.append(meta)
@@ -838,7 +853,6 @@ class Epub:
         if linear_only:
             items = [x for x in items if x.get('linear') != 'no']
         return [x['idref'] for x in items]
-        return ids
 
     @writes
     def set_spine_order(self, ids):
@@ -980,7 +994,7 @@ class Epub:
         if new_filepath is None:
             return None
 
-        link = link._replace(path=new_filepath.relative_to(relative_to, simple=True))
+        link = link._replace(path=new_filepath.relative_to(relative_to, simple=True).replace('\\', '/'))
         link = link._replace(path=urllib.parse.quote(link.path))
 
         return link.geturl()
@@ -1236,10 +1250,10 @@ class Epub:
                     hash_anchor = f'#{header["id"]}'
 
                 if nav_id:
-                    relative = file_path.relative_to(nav_filepath.parent, simple=True)
+                    relative = file_path.relative_to(nav_filepath.parent, simple=True).replace('\\', '/')
                     toc_line['nav_anchor'] = f'{relative}{hash_anchor}'
                 if ncx_id:
-                    relative = file_path.relative_to(ncx_filepath.parent, simple=True)
+                    relative = file_path.relative_to(ncx_filepath.parent, simple=True).replace('\\', '/')
                     toc_line['ncx_anchor'] = f'{relative}{hash_anchor}'
 
                 if current_list['level'] is None:
@@ -1321,7 +1335,7 @@ class Epub:
         # location of all all manifest item hrefs.
         manifest_items = self.get_manifest_items(soup=True)
         old_filepaths = {item['id']: self.get_filepath(item['id']) for item in manifest_items}
-        old_ncx = self.get_ncx()
+
         try:
             old_ncx_parent = self.get_filepath(self.get_ncx()).parent
         except Exception:
@@ -1332,10 +1346,10 @@ class Epub:
             oebps.makedirs(exist_ok=True)
             self.write_opf()
             new_opf_path = oebps.with_child(self.opf_filepath.basename)
-            os.rename(self.opf_filepath.absolute_path, new_opf_path.absolute_path)
+            os.rename(self.opf_filepath, new_opf_path)
             container = self.read_container_xml()
             rootfile = container.find('rootfile', {'full-path': self.opf_filepath.basename})
-            rootfile['full-path'] = new_opf_path.relative_to(self.root_directory, simple=True)
+            rootfile['full-path'] = new_opf_path.relative_to(self.root_directory, simple=True).replace('\\', '/')
             self.write_container_xml(container)
             self.opf_filepath = new_opf_path
 
@@ -1348,15 +1362,15 @@ class Epub:
             if directory.exists:
                 # On Windows, this will fix any incorrect casing.
                 # On Linux it is inert.
-                os.rename(directory.absolute_path, directory.absolute_path)
+                os.rename(directory, directory)
             else:
                 directory.makedirs()
 
             new_filepath = directory.with_child(old_filepath.basename)
             if new_filepath.absolute_path != old_filepath.absolute_path:
                 rename_map[old_filepath] = new_filepath
-                os.rename(old_filepath.absolute_path, new_filepath.absolute_path)
-            manifest_item['href'] = new_filepath.relative_to(self.opf_filepath.parent, simple=True)
+                os.rename(old_filepath, new_filepath)
+            manifest_item['href'] = new_filepath.relative_to(self.opf_filepath.parent, simple=True).replace('\\', '/')
 
         self.fix_interlinking_opf(rename_map)
         for id in self.get_texts():
@@ -1372,7 +1386,6 @@ class Epub:
             if item['href'] in ['toc.ncx', 'Misc/toc.ncx']:
                 item['media-type'] = 'application/x-dtbncx+xml'
 
-
 # COMMAND LINE TOOLS
 ################################################################################
 import argparse
@@ -1382,13 +1395,12 @@ import string
 import sys
 
 from voussoirkit import betterhelp
-from voussoirkit import winglob
 
 DOCSTRING = '''
 Epubfile
 ========
 
-A simple python .epub scripting tool.
+A simple Python .epub scripting tool.
 
 {addfile}
 
@@ -1401,6 +1413,8 @@ A simple python .epub scripting tool.
 {holdit}
 
 {merge}
+
+{new}
 
 {normalize}
 
@@ -1454,8 +1468,12 @@ generate_toc:
 
 holdit='''
 holdit:
-    Extract the book so that you can manually edit the files on disk, then save
-    the changes back into the original file.
+    Extract the book so that you can manually edit the files on disk, then
+    compress them back into the original file.
+
+    This is helpful when you want to do some file processing that is outside of
+    epubfile's scope. epubfile will save you the effort of extracting and
+    compressing the epub so you can focus on doing the file operations.
 
     > epubfile.py holdit book.epub
 '''.strip(),
@@ -1468,7 +1486,7 @@ merge:
 
     flags:
     --demote_headers:
-        All h1 in the book will be demoted to h2, and so forth. So that the
+        All h1 in the book will be demoted to h2, and so forth, so that the
         headerfiles are the only h1s and the table of contents will generate
         with a good hierarchy.
 
@@ -1479,7 +1497,7 @@ merge:
         In the headerfile, the <h1> will start with the book's index, like
         "01. First Book"
 
-    -y | --autoyes:
+    --yes:
         Overwrite the output file without prompting.
 '''.strip(),
 
@@ -1490,7 +1508,7 @@ new:
     > epubfile.py new book.epub <flags>
 
     flags:
-    -y | --autoyes:
+    --yes:
         Overwrite the file without prompting.
 '''.strip(),
 
@@ -1511,7 +1529,11 @@ setfont:
     A stylesheet called epubfile_setfont.css will be created that sets
     * { font-family: ... !important } with a font file of your choice.
 
-    > epubfile.py setfont book.epub font.ttf
+    > epubfile.py setfont book.epub font.ttf <flags>
+
+    flags:
+    --yes:
+        Overwrite the epubfile_setfont.css without prompting.
 '''.strip(),
 )
 
@@ -1525,7 +1547,7 @@ def addfile_argparse(args):
 
     for pattern in args.files:
         for file in pathclass.glob_files(pattern):
-            print(f'Adding file {file.absolute_path}.')
+            log.info('Adding file %s.', file.absolute_path)
             try:
                 book.easy_add_file(file)
             except (IDExists, FileExists) as exc:
@@ -1538,6 +1560,7 @@ def addfile_argparse(args):
 
     book.move_nav_to_end()
     book.save(args.epub)
+    return 0
 
 def covercomesfirst(book):
     basenames = {i: book.get_filepath(i).basename for i in book.get_images()}
@@ -1578,35 +1601,39 @@ def covercomesfirst(book):
     book.rename_file(rename_map)
 
 def covercomesfirst_argparse(args):
-    epubs = [epub for pattern in args.epubs for epub in winglob.glob(pattern)]
+    epubs = pathclass.glob_many(args.epubs)
     for epub in epubs:
-        print(epub)
         book = Epub(epub)
+        log.info('Moving %s\'s cover.', book)
         covercomesfirst(book)
         book.save(epub)
+        pipeable.stdout(epub.absolute_path)
+    return 0
 
 def exec_argparse(args):
-    epubs = [epub for pattern in args.epubs for epub in winglob.glob(pattern)]
+    epubs = pathclass.glob_many(args.epubs)
     for epub in epubs:
-        print(epub)
         book = Epub(epub)
         exec(args.command)
         book.save(epub)
+        pipeable.stdout(epub.absolute_path)
+    return 0
 
 def generate_toc_argparse(args):
-    epubs = [epub for pattern in args.epubs for epub in winglob.glob(pattern)]
+    epubs = pathclass.glob_many(args.epubs)
     books = []
     for epub in epubs:
         book = Epub(epub)
         book.generate_toc(max_level=int(args.max_level) if args.max_level else None)
         book.save(epub)
+    return 0
 
 def holdit_argparse(args):
-    epubs = [epub for pattern in args.epubs for epub in winglob.glob(pattern)]
+    epubs = pathclass.glob_many(args.epubs)
     books = []
     for epub in epubs:
         book = Epub(epub)
-        print(f'{epub} = {book.root_directory.absolute_path}')
+        pipeable.stderr(f'{epub} = {book.root_directory.absolute_path}')
         books.append((epub, book))
 
     input('Press Enter when ready.')
@@ -1615,10 +1642,11 @@ def holdit_argparse(args):
         # So let's re-read it first.
         book.read_opf(book.opf_filepath)
         book.save(epub)
+        pipeable.stdout(epub.absolute_path)
+    return 0
 
 def merge(
         input_filepaths,
-        output_filename,
         demote_headers=False,
         do_headerfile=False,
         number_headerfile=False,
@@ -1631,7 +1659,7 @@ def merge(
 
     # Number books from 1 for human sanity.
     for (index, input_filepath) in enumerate(input_filepaths, start=1):
-        print(f'Merging {input_filepath.absolute_path}.')
+        log.info('Merging %s.', input_filepath.absolute_path)
         prefix = f'{rand_prefix}_{index:>0{index_length}}_{{}}'
         input_book = Epub(input_filepath)
         input_book.normalize_directory_structure()
@@ -1691,79 +1719,87 @@ def merge(
             book.add_file(new_id, new_basename, content)
 
     book.move_nav_to_end()
-    book.save(output_filename)
+    return book
 
 def merge_argparse(args):
-    if os.path.exists(args.output):
+    output = pathclass.Path(args.output)
+
+    if output.exists:
         if not (args.autoyes or interactive.getpermission(f'Overwrite {args.output}?')):
             raise ValueError(f'{args.output} exists.')
 
-    return merge(
+    book = merge(
         input_filepaths=args.epubs,
-        output_filename=args.output,
         demote_headers=args.demote_headers,
         do_headerfile=args.headerfile,
         number_headerfile=args.number_headerfile,
     )
+    book.save(output)
+    pipeable.stdout(output.absolute_path)
+    return 0
 
 def new_book_argparse(args):
-    if os.path.exists(args.epub):
+    output = pathclass.Path(args.epub)
+    if output.exists:
         if not (args.autoyes or interactive.getpermission(f'Overwrite {args.epub}?')):
-            raise ValueError(f'{args.epub} exists.')
+            raise ValueError(f'{output.absolute_path} exists.')
     book = Epub.new()
-    book.save(args.epub)
+    book.save(output)
+    pipeable.stdout(output.absolute_path)
+    return 0
 
 def normalize_argparse(args):
-    epubs = [epub for pattern in args.epubs for epub in winglob.glob(pattern)]
+    epubs = pathclass.glob_many(args.epubs)
     for epub in epubs:
-        print(epub)
+        log.info('Normalizing %s.', epub.absolute_path)
         book = Epub(epub)
         book.normalize_opf()
         book.normalize_directory_structure()
         book.move_nav_to_end()
         book.save(epub)
+        pipeable.stdout(epub.absolute_path)
+    return 0
 
-def setfont_argparse(args):
-    book = Epub(args.epub)
-
+def setfont(book, new_font, autoyes=False):
     css_id = 'epubfile_setfont'
     css_basename = 'epubfile_setfont.css'
+
+    new_font = pathclass.Path(new_font)
+    new_font.assert_is_file()
 
     try:
         book.assert_id_not_exists(css_id)
     except IDExists:
-        if not interactive.getpermission(f'Overwrite {css_id}?'):
+        if not (autoyes or interactive.getpermission(f'Overwrite {css_id}?')):
             return
         book.delete_file(css_id)
 
-    font = pathclass.Path(args.font)
-
     for existing_font in book.get_fonts():
         font_path = book.get_filepath(existing_font)
-        if font_path.basename == font.basename:
+        if font_path.basename == new_font.basename:
             font_id = existing_font
             break
     else:
-        font_id = book.easy_add_file(font)
+        font_id = book.easy_add_file(new_font)
         font_path = book.get_filepath(font_id)
 
     # The font_path may have come from an existing font in the book, so we have
     # no guarantees about its path layout. The css file, however, is definitely
     # going to be inside OEBPS/Styles since we're the ones creating it.
     # So, we should be getting the correct number of .. in the relative path.
-    family = font_path.basename
-    relative = font_path.relative_to(book.opf_filepath.parent.with_child('Styles'))
+    family = font_path.replace_extension('').basename
+    relative = font_path.relative_to(book.opf_filepath.parent.with_child('Styles')).replace('\\', '/')
 
     css = f'''
     @font-face {{
-    font-family: '{family}';
+    font-family: "{family}";
     font-weight: normal;
     font-style: normal;
     src: url("{relative}");
     }}
 
     * {{
-        font-family: '{family}' !important;
+        font-family: "{family}" !important;
     }}
     '''
 
@@ -1776,69 +1812,77 @@ def setfont_argparse(args):
 
     for text_id in book.get_texts():
         text_path = book.get_filepath(text_id)
-        relative = css_path.relative_to(text_path)
         soup = book.read_file(text_id, soup=True)
         head = soup.head
         if head.find('link', {'id': css_id}):
             continue
         link = soup.new_tag('link')
         link['id'] = css_id
-        link['href'] = css_path.relative_to(text_path.parent)
+        link['href'] = css_path.relative_to(text_path.parent).replace('\\', '/')
         link['rel'] = 'stylesheet'
         link['type'] = 'text/css'
         head.append(link)
         book.write_file(text_id, soup)
 
-    book.save(args.epub)
+def setfont_argparse(args):
+    epubs = pathclass.glob_many(args.epubs)
+    for epub in epubs:
+        book = Epub(epub)
+        setfont(book, args.font, autoyes=args.autoyes)
+        book.save(epub)
+        pipeable.stdout(epub.absolute_path)
+    return 0
 
+@vlogging.main_decorator
 def main(argv):
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers()
 
     p_addfile = subparsers.add_parser('addfile')
     p_addfile.add_argument('epub')
-    p_addfile.add_argument('files', nargs='+', default=[])
+    p_addfile.add_argument('files', nargs='+')
     p_addfile.set_defaults(func=addfile_argparse)
 
     p_covercomesfirst = subparsers.add_parser('covercomesfirst')
-    p_covercomesfirst.add_argument('epubs', nargs='+', default=[])
+    p_covercomesfirst.add_argument('epubs', nargs='+')
     p_covercomesfirst.set_defaults(func=covercomesfirst_argparse)
 
     p_exec = subparsers.add_parser('exec')
-    p_exec.add_argument('epubs', nargs='+', default=[])
-    p_exec.add_argument('--command', dest='command', default=None, required=True)
+    p_exec.add_argument('epubs', nargs='+')
+    p_exec.add_argument('--command', default=None, required=True)
     p_exec.set_defaults(func=exec_argparse)
 
     p_generate_toc = subparsers.add_parser('generate_toc')
-    p_generate_toc.add_argument('epubs', nargs='+', default=[])
-    p_generate_toc.add_argument('--max_level', '--max-level', dest='max_level', default=None)
+    p_generate_toc.add_argument('epubs', nargs='+')
+    p_generate_toc.add_argument('--max_level', '--max-level', default=None)
     p_generate_toc.set_defaults(func=generate_toc_argparse)
 
     p_holdit = subparsers.add_parser('holdit')
-    p_holdit.add_argument('epubs', nargs='+', default=[])
+    p_holdit.add_argument('epubs', nargs='+')
     p_holdit.set_defaults(func=holdit_argparse)
 
     p_merge = subparsers.add_parser('merge')
-    p_merge.add_argument('epubs', nargs='+', default=[])
-    p_merge.add_argument('--output', dest='output', default=None, required=True)
-    p_merge.add_argument('--headerfile', dest='headerfile', action='store_true')
-    p_merge.add_argument('--demote_headers', '--demote-headers', dest='demote_headers', action='store_true')
-    p_merge.add_argument('--number_headerfile', '--number-headerfile', dest='number_headerfile', action='store_true')
-    p_merge.add_argument('-y', '--autoyes', dest='autoyes', action='store_true')
+    p_merge.add_argument('epubs', nargs='+')
+    p_merge.add_argument('--output', required=True)
+    p_merge.add_argument('--headerfile', action='store_true')
+    p_merge.add_argument('--demote_headers', '--demote-headers', action='store_true')
+    p_merge.add_argument('--number_headerfile', '--number-headerfile', action='store_true')
+    p_merge.add_argument('-y', '--yes', '--autoyes', dest='autoyes', action='store_true')
     p_merge.set_defaults(func=merge_argparse)
 
     p_new = subparsers.add_parser('new')
     p_new.add_argument('epub')
-    p_new.add_argument('-y', '--autoyes', dest='autoyes', action='store_true')
+    p_new.add_argument('-y', '--yes', '--autoyes', dest='autoyes', action='store_true')
     p_new.set_defaults(func=new_book_argparse)
 
     p_normalize = subparsers.add_parser('normalize')
-    p_normalize.add_argument('epubs', nargs='+', default=[])
+    p_normalize.add_argument('epubs', nargs='+')
     p_normalize.set_defaults(func=normalize_argparse)
 
     p_setfont = subparsers.add_parser('setfont')
-    p_setfont.add_argument('epub')
-    p_setfont.add_argument('font')
+    p_setfont.add_argument('epubs', nargs='+')
+    p_setfont.add_argument('--font', required=True)
+    p_setfont.add_argument('--yes', dest='autoyes', action='store_true')
     p_setfont.set_defaults(func=setfont_argparse)
 
     return betterhelp.subparser_main(
