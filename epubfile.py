@@ -1,17 +1,22 @@
+import argparse
+import bs4
 import copy
 import functools
+import html
 import io
 import mimetypes
 import os
+import random
 import re
+import string
+import sys
 import tempfile
+import tinycss2
 import urllib.parse
 import uuid
 import zipfile
 
-import bs4
-import tinycss2
-
+from voussoirkit import betterhelp
 from voussoirkit import interactive
 from voussoirkit import pathclass
 from voussoirkit import pipeable
@@ -1388,156 +1393,6 @@ class Epub:
 
 # COMMAND LINE TOOLS
 ################################################################################
-import argparse
-import html
-import random
-import string
-import sys
-
-from voussoirkit import betterhelp
-
-DOCSTRING = '''
-Epubfile
-========
-
-A simple Python .epub scripting tool.
-
-{addfile}
-
-{covercomesfirst}
-
-{exec}
-
-{generate_toc}
-
-{holdit}
-
-{merge}
-
-{new}
-
-{normalize}
-
-{setfont}
-
-TO SEE DETAILS ON EACH COMMAND, RUN
-> epubfile.py <command> --help
-'''
-
-SUB_DOCSTRINGS = dict(
-addfile='''
-addfile:
-    Add files into the book.
-
-    > epubfile.py addfile book.epub page1.html image.jpg
-'''.strip(),
-
-covercomesfirst='''
-covercomesfirst:
-    Rename the cover image file so that it is the alphabetically-first image.
-
-    > epubfile.py covercomesfirst book.epub
-
-    I use CBXShell to get thumbnails of epub files on Windows, and because it
-    is generalized for zip files and doesn't read epub metadata, alphabetized
-    mode works best for getting epub covers as icons.
-
-    In my testing, CBXShell considers the image's whole path and not just the
-    basename, so you may want to consider normalizing the directory structure
-    first, otherwise some /a/image.jpg will always be before /images/cover.jpg.
-'''.strip(),
-
-exec='''
-exec:
-    Execute a snippet of Python code against the book.
-
-    > epubfile.py exec book.epub --command "book._____()"
-'''.strip(),
-
-generate_toc='''
-generate_toc:
-    Regenerate the toc.ncx and nav.xhtml based on html <hX> headers in the text.
-
-    > epubfile.py generate_toc book.epub <flags>
-
-    flags:
-    --max_level X:
-        Only generate toc entries for headers up to level X.
-        That is, h1, h2, ... hX.
-'''.strip(),
-
-holdit='''
-holdit:
-    Extract the book so that you can manually edit the files on disk, then
-    compress them back into the original file.
-
-    This is helpful when you want to do some file processing that is outside of
-    epubfile's scope. epubfile will save you the effort of extracting and
-    compressing the epub so you can focus on doing the file operations.
-
-    > epubfile.py holdit book.epub
-'''.strip(),
-
-merge='''
-merge:
-    Merge multiple books into one.
-
-    > epubfile.py merge book1.epub book2.epub --output final.epub <flags>
-
-    flags:
-    --demote_headers:
-        All h1 in the book will be demoted to h2, and so forth, so that the
-        headerfiles are the only h1s and the table of contents will generate
-        with a good hierarchy.
-
-    --headerfile:
-        Add a file before each book with an <h1> containing its title.
-
-    --number_headerfile:
-        In the headerfile, the <h1> will start with the book's index, like
-        "01. First Book"
-
-    --yes:
-        Overwrite the output file without prompting.
-'''.strip(),
-
-new='''
-new:
-    Create a new, blank epub file.
-
-    > epubfile.py new book.epub <flags>
-
-    flags:
-    --yes:
-        Overwrite the file without prompting.
-'''.strip(),
-
-normalize='''
-normalize:
-    Rename files and directories in the book to match a common structure.
-
-    Moves all book content from / into /OEBPS and sorts files into
-    subdirectories by type: Text, Images, Styles, etc.
-
-    > epubfile.py normalize book.epub
-'''.strip(),
-
-setfont='''
-setfont:
-    Set the font for every page in the whole book.
-
-    A stylesheet called epubfile_setfont.css will be created that sets
-    * { font-family: ... !important } with a font file of your choice.
-
-    > epubfile.py setfont book.epub font.ttf <flags>
-
-    flags:
-    --yes:
-        Overwrite the epubfile_setfont.css without prompting.
-'''.strip(),
-)
-
-DOCSTRING = betterhelp.add_previews(DOCSTRING, SUB_DOCSTRINGS)
 
 def random_string(length, characters=string.ascii_lowercase):
     return ''.join(random.choices(characters, k=length))
@@ -1624,7 +1479,7 @@ def generate_toc_argparse(args):
     books = []
     for epub in epubs:
         book = Epub(epub)
-        book.generate_toc(max_level=int(args.max_level) if args.max_level else None)
+        book.generate_toc(max_level=args.max_level)
         book.save(epub)
     return 0
 
@@ -1835,62 +1690,246 @@ def setfont_argparse(args):
 
 @vlogging.main_decorator
 def main(argv):
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        description='''
+        A simple Python .epub scripting tool.
+        ''',
+    )
     subparsers = parser.add_subparsers()
 
-    p_addfile = subparsers.add_parser('addfile')
-    p_addfile.add_argument('epub')
-    p_addfile.add_argument('files', nargs='+')
+    ################################################################################################
+
+    p_addfile = subparsers.add_parser(
+        'addfile',
+        description='''
+        Add files into the book.
+        ''',
+    )
+    p_addfile.add_argument(
+        'epub',
+    )
+    p_addfile.add_argument(
+        'files',
+        nargs='+',
+    )
     p_addfile.set_defaults(func=addfile_argparse)
 
-    p_covercomesfirst = subparsers.add_parser('covercomesfirst')
-    p_covercomesfirst.add_argument('epubs', nargs='+')
+    ################################################################################################
+
+    p_covercomesfirst = subparsers.add_parser(
+        'covercomesfirst',
+        description='''
+        Rename the cover image file so that it is the alphabetically-first image.
+
+        I use CBXShell to get thumbnails of epub files on Windows, and because it
+        is generalized for zip files and doesn't read epub metadata, alphabetized
+        mode works best for getting epub covers as icons.
+
+        In my testing, CBXShell considers the image's whole path and not just the
+        basename, so you may want to consider normalizing the directory structure
+        first, otherwise some /a/image.jpg will always be before /images/cover.jpg.
+        ''',
+    )
+    p_covercomesfirst.add_argument(
+        'epubs',
+        nargs='+',
+    )
     p_covercomesfirst.set_defaults(func=covercomesfirst_argparse)
 
-    p_exec = subparsers.add_parser('exec')
-    p_exec.add_argument('epubs', nargs='+')
-    p_exec.add_argument('--command', default=None, required=True)
+    ################################################################################################
+
+    p_exec = subparsers.add_parser(
+        'exec',
+        description='''
+        Execute a snippet of Python code against the book. The book will be saved
+        again after the command has finished.
+        ''',
+    )
+    p_exec.examples = [
+        ['mybook.epub', '--command', 'print(book.get_authors())'],
+        ['*.epub', '--command', 'book.remove_cover_image()'],
+    ]
+    p_exec.add_argument(
+        'epubs',
+        nargs='+',
+    )
+    p_exec.add_argument(
+        '--command',
+        default=None,
+        required=True,
+        help='''
+        The variable `book` will be the Epub object.
+        ''',
+    )
     p_exec.set_defaults(func=exec_argparse)
 
-    p_generate_toc = subparsers.add_parser('generate_toc')
-    p_generate_toc.add_argument('epubs', nargs='+')
-    p_generate_toc.add_argument('--max_level', '--max-level', default=None)
+    ################################################################################################
+
+    p_generate_toc = subparsers.add_parser(
+        'generate_toc',
+        description='''
+        Regenerate the toc.ncx and nav.xhtml based on html <hX> headers in the text.
+        ''',
+    )
+    p_generate_toc.add_argument(
+        'epubs',
+        nargs='+',
+    )
+    p_generate_toc.add_argument(
+        '--max_level',
+        '--max-level',
+        type=int,
+        default=None,
+        help='''
+        Only generate toc entries for headers up to level X.
+        That is, h1, h2, ... hX.
+        ''',
+    )
     p_generate_toc.set_defaults(func=generate_toc_argparse)
 
-    p_holdit = subparsers.add_parser('holdit')
-    p_holdit.add_argument('epubs', nargs='+')
+    ################################################################################################
+
+    p_holdit = subparsers.add_parser(
+        'holdit',
+        description='''
+        Extract the book so that you can manually edit the files on disk, then
+        compress them back into the original file.
+
+        This is helpful when you want to do some file processing that is outside of
+        epubfile's scope. epubfile will save you the effort of extracting and
+        compressing the epub so you can focus on doing the file operations.
+        ''',
+    )
+    p_holdit.add_argument(
+        'epubs',
+        nargs='+',
+    )
     p_holdit.set_defaults(func=holdit_argparse)
 
-    p_merge = subparsers.add_parser('merge')
-    p_merge.add_argument('epubs', nargs='+')
-    p_merge.add_argument('--output', required=True)
-    p_merge.add_argument('--headerfile', action='store_true')
-    p_merge.add_argument('--demote_headers', '--demote-headers', action='store_true')
-    p_merge.add_argument('--number_headerfile', '--number-headerfile', action='store_true')
-    p_merge.add_argument('-y', '--yes', '--autoyes', dest='autoyes', action='store_true')
+    ################################################################################################
+
+    p_merge = subparsers.add_parser(
+        'merge',
+        description='''
+        Merge multiple books into one.
+        ''',
+    )
+    p_merge.add_argument(
+        'epubs',
+        nargs='+',
+    )
+    p_merge.add_argument(
+        '--output',
+        required=True,
+    )
+    p_merge.add_argument(
+        '--headerfile',
+        action='store_true',
+        help='''
+        Add a file before each book with an <h1> containing its title.
+        ''',
+    )
+    p_merge.add_argument(
+        '--demote_headers',
+        '--demote-headers',
+        action='store_true',
+        help='''
+        All h1 in the book will be demoted to h2, and so forth, so that the
+        headerfiles are the only h1s and the table of contents will generate
+        with a good hierarchy.
+        ''',
+    )
+    p_merge.add_argument(
+        '--number_headerfile',
+        '--number-headerfile',
+        action='store_true',
+        help='''
+        In the headerfile, the <h1> will start with the book's index, like
+        "01. First Book"
+        ''',
+    )
+    p_merge.add_argument(
+        '-y',
+        '--yes',
+        '--autoyes',
+        dest='autoyes',
+        action='store_true',
+        help='''
+        Overwrite the output file without prompting.
+        ''',
+    )
     p_merge.set_defaults(func=merge_argparse)
 
-    p_new = subparsers.add_parser('new')
-    p_new.add_argument('epub')
-    p_new.add_argument('-y', '--yes', '--autoyes', dest='autoyes', action='store_true')
+    ################################################################################################
+
+    p_new = subparsers.add_parser(
+        'new',
+        description='''
+        Create a new, blank epub file.
+        ''',
+    )
+    p_new.add_argument(
+        'epub',
+    )
+    p_new.add_argument(
+        '-y',
+        '--yes',
+        '--autoyes',
+        dest='autoyes',
+        action='store_true',
+        help='''
+        Overwrite the file without prompting.
+        ''',
+    )
     p_new.set_defaults(func=new_book_argparse)
 
-    p_normalize = subparsers.add_parser('normalize')
-    p_normalize.add_argument('epubs', nargs='+')
+    ################################################################################################
+
+    p_normalize = subparsers.add_parser(
+        'normalize',
+        description='''
+        Rename files and directories in the book to match a common structure.
+
+        Moves all book content from / into /OEBPS and sorts files into
+        subdirectories by type: Text, Images, Styles, etc.
+        ''',
+    )
+    p_normalize.add_argument(
+        'epubs',
+        nargs='+',
+    )
     p_normalize.set_defaults(func=normalize_argparse)
 
-    p_setfont = subparsers.add_parser('setfont')
-    p_setfont.add_argument('epubs', nargs='+')
-    p_setfont.add_argument('--font', required=True)
-    p_setfont.add_argument('--yes', dest='autoyes', action='store_true')
+    ################################################################################################
+
+    p_setfont = subparsers.add_parser(
+        'setfont',
+        description='''
+        Set the font for every page in the whole book.
+
+        A stylesheet called epubfile_setfont.css will be created that sets
+        * { font-family: ... !important } with a font file of your choice.
+        ''',
+    )
+    p_setfont.add_argument(
+        'epubs',
+        nargs='+',
+    )
+    p_setfont.add_argument(
+        '--font',
+        required=True,
+    )
+    p_setfont.add_argument(
+        '--yes',
+        dest='autoyes',
+        action='store_true',
+        help='''
+        Overwrite the epubfile_setfont.css without prompting.
+        ''',
+    )
     p_setfont.set_defaults(func=setfont_argparse)
 
-    return betterhelp.subparser_main(
-        argv,
-        parser,
-        main_docstring=DOCSTRING,
-        sub_docstrings=SUB_DOCSTRINGS,
-    )
+    return betterhelp.go(parser, argv)
 
 if __name__ == '__main__':
     raise SystemExit(main(sys.argv[1:]))
