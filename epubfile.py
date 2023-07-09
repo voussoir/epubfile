@@ -684,8 +684,12 @@ class Epub:
     def read_file(self, id, *, soup=False):
         # text vs binary handled by open_file.
         content = self.open_file(id, 'r').read()
-        if soup and self.get_manifest_item(id)['media-type'] == 'application/xhtml+xml':
+        mediatype = self.get_manifest_item(id)['media-type']
+        if soup and mediatype == 'application/xhtml+xml':
             return fix_xhtml(content, return_soup=True)
+        if soup and mediatype == 'application/x-dtbncx+xml':
+            # xml because we have to preserve the casing on navMap.
+            return bs4.BeautifulSoup(content, 'xml')
         return content
 
     @writes
@@ -1161,8 +1165,7 @@ class Epub:
                 navpoint.append(child)
             return navpoint
 
-        # xml because we have to preserve the casing on navMap.
-        soup = bs4.BeautifulSoup(self.read_file(ncx_id), 'xml')
+        soup = self.read_file(ncx_id, soup=True)
         navmap = soup.navMap
         for child in list(navmap.children):
             child.extract()
