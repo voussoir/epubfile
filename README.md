@@ -68,6 +68,8 @@ I do not intend to implement an object model for book metadata, beyond perhaps s
 
 ## Mirrors
 
+https://git.voussoir.net/voussoir/epubfile
+
 https://github.com/voussoir/epubfile
 
 https://gitlab.com/voussoir/epubfile
